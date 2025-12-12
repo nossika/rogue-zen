@@ -23,17 +23,26 @@ export const spawnEnemy = (
     // DETERMINE TYPE FIRST to know dimensions for collision check
     const tierMultiplier = 1 + (player.level * 0.15);
     let type: EnemyType = 'STANDARD';
+    
     if (isBossStage) {
         type = 'BOSS';
     } else {
-        const rand = Math.random();
-        // Hierarchy: INCINERATOR > ZOMBIE > BOMBER > RANGED > FAST > TANK
-        if (currentStage >= 6 && rand > 0.90) type = 'INCINERATOR'; 
-        else if (currentStage >= 5 && rand > 0.80) type = 'ZOMBIE';
-        else if (currentStage >= 4 && rand > 0.68) type = 'BOMBER'; 
-        else if (currentStage >= 3 && rand > 0.55) type = 'RANGED'; 
-        else if (currentStage >= 2 && rand > 0.40) type = 'FAST';
-        else if (currentStage >= 2 && rand > 0.20) type = 'TANK';
+        // Filter valid enemies for this stage and calculate total weight
+        const validTypes = Object.entries(ENEMY_TYPES_CONFIG).filter(([key, config]) => 
+            key !== 'BOSS' && currentStage >= config.minStage
+        );
+
+        const totalWeight = validTypes.reduce((sum, [_, config]) => sum + config.spawnWeight, 0);
+        let randomWeight = Math.random() * totalWeight;
+
+        // Weighted selection
+        for (const [key, config] of validTypes) {
+            randomWeight -= config.spawnWeight;
+            if (randomWeight <= 0) {
+                type = key as EnemyType;
+                break;
+            }
+        }
     }
 
     const config = ENEMY_TYPES_CONFIG[type];
@@ -115,6 +124,12 @@ export const spawnEnemy = (
         bossAbilities = shuffled.slice(0, 2);
     }
 
+    // Base max HP calculation
+    const maxHp = 20 * tierMultiplier * config.hpMult;
+    
+    // Iron Beetle starts with 100% Armor
+    const initialArmor = type === 'IRON_BEETLE' ? maxHp : 0;
+
     enemies.push({
       id: Math.random().toString(),
       x: ex,
@@ -130,15 +145,16 @@ export const spawnEnemy = (
       element: element,
       attackCooldown: 0,
       summonCooldown: type === 'BOSS' ? 600 : undefined, // Boss summons every ~10s (600 frames)
+      buffCooldown: type === 'IRON_BEETLE' ? 300 : undefined, // Iron Beetle buffs every 5s (300 frames)
       isMinion: false,
       bossAbilities: bossAbilities,
       totalDamageTaken: 0,
       abilityTimers: {},
       stunTimer: 0,
       stats: {
-        maxHp: 20 * tierMultiplier * config.hpMult, 
-        hp: 20 * tierMultiplier * config.hpMult,
-        shield: 0,
+        maxHp: maxHp, 
+        hp: maxHp,
+        shield: initialArmor, // Shield acts as Armor
         attack: 10 * tierMultiplier * config.attackMult,
         defense: 0,
         moveSpeed: (2 + Math.random() * 1.5) * config.speedMult,
@@ -336,13 +352,17 @@ export const updateEnemies = (
     handleCreateHazard?: (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER') => void,
     grid?: SpatialHashGrid // Optional for backward compatibility but used for optimization
 ) => {
-    if (isTimeStop) return;
-
     // Use a loop that allows modifying the array (for summons)
     const currentCount = enemies.length;
     for(let i=0; i<currentCount; i++) {
         const e = enemies[i];
         
+        if (isTimeStop) {
+            // Even if frozen, we MUST insert into grid so projectiles can hit them
+            if (grid) grid.insert(e);
+            continue; 
+        }
+
         // Handle Stun
         if (e.stunTimer && e.stunTimer > 0) {
             e.stunTimer--;
@@ -363,6 +383,40 @@ export const updateEnemies = (
 
         const isBerserk = e.type === 'BOSS' && (e.abilityTimers?.['BERSERKER'] || 0) > 0;
         
+        // --- IRON BEETLE LOGIC ---
+        if (e.type === 'IRON_BEETLE' && e.buffCooldown !== undefined) {
+            if (e.buffCooldown > 0) e.buffCooldown--;
+            
+            // Buff ability: Every 5s
+            if (e.buffCooldown <= 0) {
+                // Find valid target: Nearby, Not Self, No Armor
+                let target: Enemy | null = null;
+                const range = 400;
+                
+                // Shuffle search or just pick first valid?
+                // Random pick is better for variety
+                const nearby = enemies.filter(ally => 
+                    ally.id !== e.id && 
+                    ally.stats.shield <= 0 &&
+                    Math.sqrt((ally.x - e.x)**2 + (ally.y - e.y)**2) < range
+                );
+                
+                if (nearby.length > 0) {
+                    target = nearby[Math.floor(Math.random() * nearby.length)];
+                }
+                
+                if (target) {
+                    // Grant 30% of Beetle's MaxHP as Shield
+                    const shieldAmt = e.stats.maxHp * 0.3;
+                    target.stats.shield = shieldAmt;
+                    spawnFloatingText(target.x, target.y - 40, "ARMOR UP!", '#cbd5e1', false);
+                    
+                    // Reset cooldown (5s)
+                    e.buffCooldown = 300;
+                }
+            }
+        }
+
         // --- BOSS LOGIC ---
         if (e.type === 'BOSS') {
             // Summoning Logic (Base mechanic)
@@ -524,7 +578,7 @@ export const updateEnemies = (
            
            // Zombies wander more erratically (higher noise influence)
            if (e.type === 'ZOMBIE') {
-               noise *= 2.5; 
+               noise *= 2; 
            }
 
            // Rotate the seek vector by the noise
@@ -730,6 +784,28 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
              }
              break;
 
+        case 'IRON_BEETLE':
+             // Beetle Shape
+             ctx.scale(1, 0.8); // Flatten slightly
+             ctx.arc(0, 0, e.width/2, 0, Math.PI * 2);
+             ctx.fill();
+             ctx.stroke();
+             
+             // Shell line
+             ctx.beginPath();
+             ctx.moveTo(-e.width/2, 0);
+             ctx.lineTo(e.width/2, 0);
+             ctx.stroke();
+             
+             // Head
+             ctx.beginPath();
+             ctx.arc(e.width/2, 0, e.width/4, -Math.PI/2, Math.PI/2);
+             ctx.fillStyle = '#64748b'; // Darker head
+             ctx.fill();
+             ctx.stroke();
+             ctx.scale(1, 1.25); // Reset scale
+             break;
+
         case 'BOSS':
             // Complex Spiky Shape
             const spikes = 12;
@@ -817,6 +893,10 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
         // Drool
         ctx.fillStyle = '#a3e635';
         ctx.beginPath(); ctx.arc(8, 8, 3, 0, Math.PI*2); ctx.fill();
+    } else if (e.type === 'IRON_BEETLE') {
+        // Small beady eyes
+        ctx.beginPath(); ctx.arc(10, -5, 2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(10, 5, 2, 0, Math.PI*2); ctx.fill();
     } else {
         // Standard two eyes
         ctx.beginPath(); ctx.ellipse(6, -4, 4, 2, 0, 0, Math.PI*2); ctx.fill();
@@ -832,10 +912,32 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
     
     const hpPct = Math.max(0, e.stats.hp / e.stats.maxHp);
     const barWidth = e.type === 'BOSS' ? 64 : 32;
+    
+    // Background
     ctx.fillStyle = '#333';
     ctx.fillRect(-barWidth/2, -e.height/2 - 12, barWidth, 5);
+    
+    // HP Bar
     ctx.fillStyle = '#ef4444';
     ctx.fillRect(-barWidth/2, -e.height/2 - 12, barWidth * hpPct, 5);
+    
+    // Armor Bar (Shield)
+    if (e.stats.shield > 0) {
+        // Armor bar drawn on top, represented as Silver
+        // Cap visual at 100% width, but maybe indicate overlay? 
+        // Logic: Width proportional to shield relative to MaxHP, capped at barWidth
+        const shieldPct = Math.min(1.0, e.stats.shield / e.stats.maxHp);
+        
+        // Draw Armor bar ABOVE HP bar or overlay?
+        // Let's draw it immediately above the HP bar to show it's a separate layer
+        ctx.fillStyle = '#cbd5e1'; // Silver
+        ctx.fillRect(-barWidth/2, -e.height/2 - 19, barWidth * shieldPct, 4);
+        
+        // Border for armor
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-barWidth/2, -e.height/2 - 19, barWidth, 4);
+    }
     
     ctx.restore();
 };

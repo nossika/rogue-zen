@@ -23,6 +23,7 @@ export enum UltimateType {
   TIME_STOP = 'TIME_STOP',
   INVINCIBILITY = 'INVINCIBILITY',
   OMNI_FORCE = 'OMNI_FORCE', // Universal Element (Replaces CRIT_SURGE)
+  BLOCK = 'BLOCK', // Summons a wall
 }
 
 export enum TalentType {
@@ -44,7 +45,7 @@ export interface Talent {
 export type WeaponType = 'SWORD' | 'AXE' | 'DAGGER' | 'PISTOL' | 'SPEAR' | 'SNIPER' | 'BOW';
 export type ArmorType = 'SHIELD' | 'GLOVES' | 'BOOTS';
 
-export type EnemyType = 'STANDARD' | 'FAST' | 'TANK' | 'RANGED' | 'BOSS' | 'BOMBER' | 'INCINERATOR' | 'ZOMBIE';
+export type EnemyType = 'STANDARD' | 'FAST' | 'TANK' | 'RANGED' | 'BOSS' | 'BOMBER' | 'INCINERATOR' | 'ZOMBIE' | 'IRON_BEETLE';
 export type BossAbility = 'INVINCIBLE_ARMOR' | 'BERSERKER' | 'HIVE_MIND' | 'BLINK' | 'SPLIT';
 
 export type TerrainType = 'WALL' | 'WATER' | 'MUD' | 'EARTH_WALL';
@@ -159,6 +160,7 @@ export interface Enemy extends Entity {
   summonCooldown?: number;
   isMinion?: boolean;
   stunTimer?: number; // Timer for when enemy hits player and stops
+  buffCooldown?: number; // For Support enemies (e.g. Iron Beetle)
   
   // Boss Specifics
   bossAbilities?: BossAbility[];

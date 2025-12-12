@@ -127,7 +127,18 @@ export const updateHazards = (
                                     (h.type === 'POISON' && enemyTerrain === 'MUD');
                      
                      if (!isSafe) {
-                         e.stats.hp -= damageTick;
+                         // Apply damage to shield first
+                         if (e.stats.shield > 0) {
+                             if (e.stats.shield >= damageTick) {
+                                 e.stats.shield -= damageTick;
+                             } else {
+                                 const remaining = damageTick - e.stats.shield;
+                                 e.stats.shield = 0;
+                                 e.stats.hp -= remaining;
+                             }
+                         } else {
+                             e.stats.hp -= damageTick;
+                         }
                      }
                  }
             });

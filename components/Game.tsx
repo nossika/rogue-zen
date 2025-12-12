@@ -2,7 +2,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, Rarity, FloatingText, Terrain, ElementType, ArmorType, Hazard, HazardType, GoldDrop, TalentType, SpatialHashGrid, UpgradeReward } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, RARITY_COLORS, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING, TERRAIN_CONFIG, ELEMENT_CONFIG, ULTIMATE_DESCRIPTIONS, DETAIL_COLORS, GOLD_VALUES } from '../constants';
-import { Shield, Zap, Clock, Star, Flame, Bomb, User, Sword, Axe, Crosshair, HelpCircle, PocketKnife, Shovel, Drill, BowArrow, Hand, Footprints, Target, Coins, Wrench } from 'lucide-react';
+import { Shield, Zap, Clock, Star, Flame, Bomb, User, Sword, Axe, Crosshair, HelpCircle, PocketKnife, Shovel, Drill, BowArrow, Hand, Footprints, Target, Coins, Wrench, BrickWall } from 'lucide-react';
 
 // Systems
 import * as TerrainSystem from '../systems/TerrainSystem';
@@ -16,6 +16,8 @@ import * as TalentSystem from '../systems/TalentSystem';
 import * as UltimateSystem from '../systems/UltimateSystem';
 import * as RenderSystem from '../systems/RenderSystem';
 import * as CameraSystem from '../systems/CameraSystem';
+import * as StageSystem from '../systems/StageSystem';
+import * as FloatingTextSystem from '../systems/FloatingTextSystem';
 
 // Hooks
 import { useGameInput } from '../hooks/useGameInput';
@@ -183,17 +185,7 @@ const Game: React.FC<GameProps> = ({
           onStageClearWrapper();
           pressCount = 0;
           // Visual feedback for cheat
-          floatingTextsRef.current.push({
-             id: Math.random().toString(),
-             x: playerRef.current.x,
-             y: playerRef.current.y - 50,
-             text: "DEV SKIP",
-             color: "#00ff00",
-             duration: 60,
-             opacity: 1,
-             vy: -2,
-             isCrit: true
-          });
+          FloatingTextSystem.createFloatingText(floatingTextsRef.current, playerRef.current.x, playerRef.current.y - 50, "DEV SKIP", "#00ff00", true);
         }
       }
     };
@@ -203,23 +195,14 @@ const Game: React.FC<GameProps> = ({
   }, [onStageClear]);
 
   const spawnFloatingText = (x: number, y: number, text: string, color: string, isCrit: boolean = false) => {
-    floatingTextsRef.current.push({
-      id: Math.random().toString(),
-      x: x + (Math.random() * 20 - 10),
-      y: y,
-      text,
-      color,
-      duration: 40,
-      opacity: 1,
-      vy: -1.5,
-      isCrit
-    });
+    FloatingTextSystem.createFloatingText(floatingTextsRef.current, x, y, text, color, isCrit);
   };
 
   const handleActivateUltimate = () => {
       UltimateSystem.activateUltimate({
           player: playerRef.current,
           enemies: enemiesRef.current,
+          terrain: terrainRef.current,
           spawnFloatingText,
           timeStopRef,
           invincibilityRef,
@@ -230,27 +213,7 @@ const Game: React.FC<GameProps> = ({
 
   const onStageClearWrapper = () => {
      const p = playerRef.current;
-     
-     // Calculate Durability Loss
-     const startHp = stageStartHpRef.current;
-     const endHp = p.stats.hp;
-     const durabilityLoss = TalentSystem.calculateDurabilityLoss(p, startHp, endHp);
-
-     // Apply Durability Loss & Remove Broken Items
-     const slots: ('weapon1' | 'weapon2' | 'armor1' | 'armor2')[] = ['weapon1', 'weapon2', 'armor1', 'armor2'];
-     
-     slots.forEach(slot => {
-         const item = p.equipment[slot];
-         if (item) {
-             item.durability -= durabilityLoss;
-             // Check break
-             if (item.durability <= 0) {
-                 p.equipment[slot] = null;
-                 console.log(`${slot} broke!`);
-             }
-         }
-     });
-
+     StageSystem.processStageEndDurability(p, stageStartHpRef.current);
      onStageClear({ ...p });
   };
 
@@ -259,51 +222,28 @@ const Game: React.FC<GameProps> = ({
 
   // --- SETUP STAGE ---
   useEffect(() => {
-    // Boss every 6 stages
-    const isBossStage = currentStage % 6 === 0;
-    const total = isBossStage ? 1 : ENEMIES_PER_STAGE_BASE + (currentStage - 1) * ENEMIES_PER_STAGE_SCALING;
-    
-    stageInfoRef.current = {
-      totalEnemies: total,
-      spawnedCount: 0,
-      killedCount: 0,
-      stageCleared: false,
-      isBossStage: isBossStage
-    };
-    enemiesRef.current = [];
-    projectilesRef.current = [];
-    floatingTextsRef.current = [];
-    hazardsRef.current = [];
-    goldDropsRef.current = [];
-    fireDamageAccumulatorRef.current = 0;
-    
-    playerRef.current.x = MAP_WIDTH / 2;
-    playerRef.current.y = MAP_HEIGHT / 2;
-    playerRef.current.velocity = { x: 0, y: 0 };
-    playerRef.current.level = currentStage;
-    playerRef.current.gold = initialGold;
-    
-    // Reset Shield for new stage AND Apply Initial Shield from Armor(s)
-    const armor1Shield = playerRef.current.equipment.armor1?.stats.shield || 0;
-    const armor2Shield = playerRef.current.equipment.armor2?.stats.shield || 0;
-    playerRef.current.stats.shield = armor1Shield + armor2Shield;
-    
-    cameraRef.current = {
-        x: Math.max(0, Math.min(MAP_WIDTH - CANVAS_WIDTH, playerRef.current.x - CANVAS_WIDTH / 2)),
-        y: Math.max(0, Math.min(MAP_HEIGHT - CANVAS_HEIGHT, playerRef.current.y - CANVAS_HEIGHT / 2))
-    };
-
-    hurtTimerRef.current = 0;
-    invincibilityRef.current = 0;
-    slowedTimerRef.current = 0;
-    timeStopRef.current = 0;
-    speedBoostRef.current = 0;
-    omniForceRef.current = 0;
-    terrainRef.current = TerrainSystem.generateTerrain();
-
-    // Spawn Random Gold Drops via LootSystem (1 to 5)
-    const goldCount = Math.floor(Math.random() * 5) + 1;
-    goldDropsRef.current = LootSystem.spawnGold(terrainRef.current, goldCount);
+    StageSystem.initializeStage({
+        player: playerRef.current,
+        stageInfo: stageInfoRef.current,
+        enemies: enemiesRef.current,
+        projectiles: projectilesRef.current,
+        floatingTexts: floatingTextsRef.current,
+        hazards: hazardsRef.current,
+        goldDrops: goldDropsRef.current,
+        terrain: terrainRef.current,
+        fireDamageAccumulator: fireDamageAccumulatorRef,
+        camera: cameraRef.current,
+        timers: {
+            hurt: hurtTimerRef,
+            invincibility: invincibilityRef,
+            slowed: slowedTimerRef,
+            timeStop: timeStopRef,
+            speedBoost: speedBoostRef,
+            omniForce: omniForceRef
+        },
+        currentStage,
+        initialGold
+    });
 
     // Track Start HP for durability calculation
     stageStartHpRef.current = playerRef.current.stats.hp;
@@ -386,50 +326,18 @@ const Game: React.FC<GameProps> = ({
   };
 
   const handlePlayerHit = (damage: number, ignoreShield = false, silent = false) => {
-      const p = playerRef.current;
-      if (invincibilityRef.current > 0 || hurtTimerRef.current > 0) return;
-
-      // Dodge Check
-      if (!ignoreShield && Math.random() < p.stats.dodgeChance) {
-          spawnFloatingText(p.x, p.y - 30, "DODGE", '#4ade80');
-          return;
-      }
-
-      const isBlocked = !ignoreShield && Math.random() <= p.stats.blockChance;
-
-      if (!isBlocked) {
-          if (ignoreShield) {
-              p.stats.hp -= damage;
-              if (!silent && damage >= 1) {
-                  spawnFloatingText(p.x, p.y - 20, `${Math.round(damage)}`, '#ef4444');
-              }
-          } else {
-             const rawDmg = Math.max(1, damage - p.stats.defense);
-             if (p.stats.shield > 0) {
-                 if (p.stats.shield >= rawDmg) {
-                     p.stats.shield -= rawDmg;
-                     spawnFloatingText(p.x, p.y - 20, `${Math.round(rawDmg)}`, '#9ca3af');
-                 } else {
-                     const remaining = rawDmg - p.stats.shield;
-                     p.stats.shield = 0;
-                     p.stats.hp -= remaining;
-                     spawnFloatingText(p.x, p.y - 20, `${Math.round(rawDmg)}`, '#ef4444');
-                 }
-             } else {
-                 p.stats.hp -= rawDmg;
-                 spawnFloatingText(p.x, p.y - 20, `${Math.round(rawDmg)}`, '#ef4444');
-             }
-          }
-          
-          p.ultimateCharge = Math.min(100, p.ultimateCharge + (ignoreShield ? damage : Math.max(1, damage - p.stats.defense)));
-
-          if (!ignoreShield) {
-              invincibilityRef.current = 30; 
-              slowedTimerRef.current = 30;
-          }
-      } else {
-          if (!silent) spawnFloatingText(p.x, p.y - 20, "BLOCKED", '#94a3b8');
-      }
+      PlayerSystem.handlePlayerDamage(
+          playerRef.current,
+          damage,
+          {
+              invincibility: invincibilityRef,
+              hurt: hurtTimerRef,
+              slowed: slowedTimerRef
+          },
+          floatingTextsRef.current,
+          ignoreShield,
+          silent
+      );
   };
 
   const update = (dt: number) => {
@@ -455,13 +363,7 @@ const Game: React.FC<GameProps> = ({
     if (cooldown1Ref.current > 0) cooldown1Ref.current--;
     if (cooldown2Ref.current > 0) cooldown2Ref.current--;
 
-    for (let i = floatingTextsRef.current.length - 1; i >= 0; i--) {
-      const ft = floatingTextsRef.current[i];
-      ft.y += ft.vy;
-      ft.duration--;
-      ft.opacity = Math.max(0, ft.duration / 15);
-      if (ft.duration <= 0) floatingTextsRef.current.splice(i, 1);
-    }
+    FloatingTextSystem.updateFloatingTexts(floatingTextsRef.current);
     
     // --- UPDATES VIA SYSTEMS ---
     LootSystem.updateLoot(p, goldDropsRef.current, spawnFloatingText);
@@ -477,6 +379,7 @@ const Game: React.FC<GameProps> = ({
         handlePlayerHit
     );
 
+    // Spawning logic (Paused during time stop)
     if (timeStopRef.current <= 0) {
       spawnTimerRef.current--;
       if (spawnTimerRef.current <= 0) {
@@ -484,19 +387,20 @@ const Game: React.FC<GameProps> = ({
         const count = enemiesRef.current.length;
         spawnTimerRef.current = count > 10 ? 60 : 30; 
       }
-
-      EnemySystem.updateEnemies(
-          enemiesRef.current, 
-          p, 
-          terrainRef.current, 
-          projectilesRef.current, 
-          timeStopRef.current > 0, 
-          spawnFloatingText,
-          handlePlayerHit,
-          handleCreateHazard, // Pass hazard creation logic
-          spatialGridRef.current 
-      );
     }
+
+    // Enemy Updates (Grid population happens here even during Time Stop)
+    EnemySystem.updateEnemies(
+        enemiesRef.current, 
+        p, 
+        terrainRef.current, 
+        projectilesRef.current, 
+        timeStopRef.current > 0, 
+        spawnFloatingText,
+        handlePlayerHit,
+        handleCreateHazard, // Pass hazard creation logic
+        spatialGridRef.current 
+    );
 
     if (p.equipment.weapon1) WeaponSystem.fireWeapon(p, p.equipment.weapon1, enemiesRef.current, projectilesRef.current, cooldown1Ref, speedBoostRef.current);
     if (p.equipment.weapon2) WeaponSystem.fireWeapon(p, p.equipment.weapon2, enemiesRef.current, projectilesRef.current, cooldown2Ref, speedBoostRef.current);
@@ -548,9 +452,7 @@ const Game: React.FC<GameProps> = ({
        }
     }
 
-    if (!stageInfoRef.current.isBossStage && 
-        stageInfoRef.current.killedCount >= stageInfoRef.current.totalEnemies && 
-        !stageInfoRef.current.stageCleared) {
+    if (StageSystem.checkStageClearCondition(stageInfoRef.current)) {
         stageInfoRef.current.stageCleared = true;
         onStageClearWrapper();
     }
@@ -700,6 +602,31 @@ const Game: React.FC<GameProps> = ({
     });
   };
 
+  const handleClickUlt = (e: React.MouseEvent) => {
+      if (!isMobile) return;
+      
+      const p = playerRef.current;
+      const ults: UltimateType[] = [];
+      if (p.equipment.weapon1?.ultimate) ults.push(p.equipment.weapon1.ultimate);
+      if (p.equipment.weapon2?.ultimate) ults.push(p.equipment.weapon2.ultimate);
+      
+      const uniqueUlts = Array.from(new Set(ults));
+      if (uniqueUlts.length === 0) return;
+      
+      const rect = e.currentTarget.getBoundingClientRect();
+      
+      if (tooltip && tooltip.type === 'ULTIMATE') {
+          setTooltip(null);
+      } else {
+          setTooltip({
+              type: 'ULTIMATE',
+              content: uniqueUlts,
+              x: rect.left,
+              y: rect.bottom + 10
+          });
+      }
+  };
+
   const renderIconForSlot = (item: Item | null, fallbackIcon: React.ReactNode) => {
       if (!item) return fallbackIcon;
       const size = isMobile ? 16 : 20;
@@ -735,18 +662,31 @@ const Game: React.FC<GameProps> = ({
                 ${item ? 'border-'+RARITY_COLORS[item.rarity].replace('#','') : 'border-gray-600'}`}
                 style={{ borderColor: item ? RARITY_COLORS[item.rarity] : undefined }}
              >
-                <div className="text-white drop-shadow-md">
+                <div className="text-white drop-shadow-md z-10">
                     {renderIconForSlot(item, defaultIcon)}
                 </div>
+
+                {item && (
+                     <div className="absolute bottom-[2px] left-[2px] right-[2px] h-[3px] bg-gray-900 rounded-full overflow-hidden border border-gray-600/50">
+                         <div 
+                            className="h-full transition-all duration-300"
+                            style={{ 
+                                width: `${Math.max(0, item.durability)}%`,
+                                backgroundColor: item.durability < 25 ? '#ef4444' : item.durability < 50 ? '#eab308' : '#22c55e'
+                            }} 
+                         />
+                     </div>
+                 )}
+
                 {item && item.element && item.element !== ElementType.NONE && (
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-black flex items-center justify-center text-[8px]"
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-black flex items-center justify-center text-[8px] z-10"
                          style={{ backgroundColor: ELEMENT_CONFIG[item.element].color }}
                     >
                        {ELEMENT_CONFIG[item.element].icon}
                     </div>
                  )}
                  {item && item.durability < 30 && (
-                     <div className="absolute -top-1 -right-1">
+                     <div className="absolute -top-1 -right-1 z-10">
                         <Wrench size={10} className="text-red-500 animate-pulse" fill="currentColor" />
                      </div>
                  )}
@@ -755,17 +695,66 @@ const Game: React.FC<GameProps> = ({
       );
   };
 
-  const renderUltimateIcon = (type?: UltimateType) => {
-      const size = isMobile ? 12 : 16;
+  const renderUltimateIcon = (type?: UltimateType, customSize?: number) => {
+      const size = customSize || (isMobile ? 12 : 16);
+      const c = (color: string) => customSize ? '' : color;
+
       switch(type) {
-          case UltimateType.SHIELD: return <Shield size={size} className="text-cyan-400" fill="currentColor" />;
-          case UltimateType.AOE_BLAST: return <Bomb size={size} className="text-orange-400" fill="currentColor" />;
-          case UltimateType.TIME_STOP: return <Clock size={size} className="text-purple-400" />;
-          case UltimateType.INVINCIBILITY: return <Star size={size} className="text-yellow-400" fill="currentColor" />;
-          case UltimateType.SPEED_BOOST: return <Zap size={size} className="text-blue-400" fill="currentColor" />;
-          case UltimateType.OMNI_FORCE: return <Flame size={size} className="text-red-500" fill="currentColor" />;
-          default: return <Star size={size} className="text-gray-400" />;
+          case UltimateType.SHIELD: return <Shield size={size} className={c("text-cyan-400")} fill="currentColor" />;
+          case UltimateType.AOE_BLAST: return <Bomb size={size} className={c("text-orange-400")} fill="currentColor" />;
+          case UltimateType.TIME_STOP: return <Clock size={size} className={c("text-purple-400")} />;
+          case UltimateType.INVINCIBILITY: return <Star size={size} className={c("text-yellow-400")} fill="currentColor" />;
+          case UltimateType.SPEED_BOOST: return <Zap size={size} className={c("text-blue-400")} fill="currentColor" />;
+          case UltimateType.OMNI_FORCE: return <Flame size={size} className={c("text-red-500")} fill="currentColor" />;
+          case UltimateType.BLOCK: return <BrickWall size={size} className={c("text-stone-400")} fill="currentColor" />;
+          default: return <Star size={size} className={c("text-gray-400")} />;
       }
+  };
+  
+  // New Unified Ultimate Button
+  const renderUltimateButton = (isForMobile: boolean) => {
+      if (!uiState.hasUltimate) return null;
+      const isReady = uiState.ult >= 100;
+      
+      return (
+        <button 
+            className={`absolute z-50 flex items-center justify-center gap-2 rounded-xl border-2 backdrop-blur-sm transition-all active:scale-95 overflow-hidden
+                ${isForMobile 
+                    ? 'bottom-8 right-8 h-16 min-w-[5rem] px-3' 
+                    : 'bottom-6 left-1/2 -translate-x-1/2 h-10 min-w-[8rem] px-4'}
+                ${isReady 
+                    ? 'bg-yellow-500/40 border-yellow-200/50 shadow-[0_0_15px_rgba(250,204,21,0.3)] animate-pulse cursor-pointer hover:bg-yellow-500/60' 
+                    : 'bg-gray-900/20 border-gray-600/30 cursor-not-allowed opacity-60'}`}
+             onClick={(e) => {
+                 if (isForMobile) return; 
+                 handleActivateUltimate();
+                 e.currentTarget.blur();
+             }}
+             onTouchStart={(e) => {
+                 if (!isForMobile) return;
+                 e.preventDefault();
+                 handleActivateUltimate();
+             }}
+        >
+             {/* Progress Overlay */}
+             {!isReady && (
+                 <div className="absolute bottom-0 left-0 right-0 bg-black/30 transition-all duration-300 pointer-events-none"
+                      style={{ height: `${100 - uiState.ult}%` }} />
+             )}
+             
+             {/* Icons */}
+             <div className={`flex items-center gap-2 relative z-10 ${isReady ? 'text-yellow-100 drop-shadow-sm' : 'text-gray-400'}`}>
+                 {uiState.activeUltimates.map((u, i) => (
+                    <div key={i}>{renderUltimateIcon(u, isForMobile ? 24 : 18)}</div>
+                 ))}
+             </div>
+             
+             {/* Label */}
+             <div className={`font-pixel font-bold relative z-10 ${isReady ? 'text-yellow-100' : 'text-gray-400'} text-[10px]`}>
+                 {isReady ? (isForMobile ? 'ULT' : 'SPACE') : `${Math.floor(uiState.ult)}%`}
+             </div>
+        </button>
+      );
   };
 
   const renderTooltip = () => {
@@ -905,9 +894,9 @@ const Game: React.FC<GameProps> = ({
                 </div>
             </div>
             
-            {/* Ultimate Bar */}
+            {/* Ultimate Bar - Still shows small status but big button is main interaction now */}
             {uiState.hasUltimate && (
-              <div className="flex items-center gap-2 cursor-help" onMouseEnter={handleMouseEnterUlt} onMouseLeave={() => !isMobile && setTooltip(null)}>
+              <div className="flex items-center gap-2 cursor-help" onMouseEnter={handleMouseEnterUlt} onMouseLeave={() => !isMobile && setTooltip(null)} onClick={handleClickUlt}>
                   <div className={`flex gap-1 bg-gray-900 border border-gray-600 rounded px-1 ${isMobile ? 'h-4' : 'h-6'} items-center`}>
                      {uiState.activeUltimates.map((u, i) => (
                         <div key={i} className={`${uiState.ult >= 100 ? 'opacity-100' : 'opacity-40 grayscale'} transition-all`}>
@@ -958,18 +947,14 @@ const Game: React.FC<GameProps> = ({
       
       {renderTooltip()}
       
+      {/* PC Ultimate Button */}
+      {!isMobile && !isPaused && renderUltimateButton(false)}
+
       {/* Mobile Controls Overlay */}
       {isMobile && !isPaused && (
           <>
             <VirtualJoystick onMove={handleJoystickMove} forceLandscape={isPortrait} />
-            
-            <button 
-                className={`absolute bottom-8 right-8 w-20 h-20 rounded-full border-4 border-white/20 shadow-lg flex items-center justify-center active:scale-95 transition-transform backdrop-blur-sm z-50
-                    ${uiState.hasUltimate && uiState.ult >= 100 ? 'bg-yellow-500/80 animate-pulse border-yellow-200' : 'bg-gray-700/50'}`}
-                onTouchStart={(e) => { e.preventDefault(); handleActivateUltimate(); }}
-            >
-                <Target size={32} className="text-white" />
-            </button>
+            {renderUltimateButton(true)}
           </>
       )}
 

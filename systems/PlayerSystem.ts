@@ -1,8 +1,9 @@
 
-import { Player, GameAssets, Terrain, TerrainType } from '../types';
+import { Player, GameAssets, Terrain, TerrainType, FloatingText } from '../types';
 import { MAP_WIDTH, MAP_HEIGHT, DETAIL_COLORS } from '../constants';
 import { checkRectOverlap } from './utils';
 import { drawWeapon } from './WeaponSystem';
+import * as FloatingTextSystem from './FloatingTextSystem';
 
 export const updatePlayerMovement = (
     player: Player, 
@@ -71,6 +72,60 @@ export const updatePlayerMovement = (
         }
     }
     if (!hitWallY) player.y = Math.max(10, Math.min(MAP_HEIGHT - 10, nextY));
+};
+
+export const handlePlayerDamage = (
+    player: Player,
+    damage: number,
+    timers: { invincibility: { current: number }, hurt: { current: number }, slowed: { current: number } },
+    floatingTexts: FloatingText[],
+    ignoreShield: boolean = false,
+    silent: boolean = false
+) => {
+    if (timers.invincibility.current > 0 || timers.hurt.current > 0) return;
+
+    // Dodge Check
+    if (!ignoreShield && Math.random() < player.stats.dodgeChance) {
+        FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 30, "DODGE", '#4ade80');
+        return;
+    }
+
+    const isBlocked = !ignoreShield && Math.random() <= player.stats.blockChance;
+
+    if (!isBlocked) {
+        if (ignoreShield) {
+            player.stats.hp -= damage;
+            if (!silent && damage >= 1) {
+                FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(damage)}`, '#ef4444');
+            }
+        } else {
+           const rawDmg = Math.max(1, damage - player.stats.defense);
+           if (player.stats.shield > 0) {
+               if (player.stats.shield >= rawDmg) {
+                   player.stats.shield -= rawDmg;
+                   FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#9ca3af');
+               } else {
+                   const remaining = rawDmg - player.stats.shield;
+                   player.stats.shield = 0;
+                   player.stats.hp -= remaining;
+                   FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#ef4444');
+               }
+           } else {
+               player.stats.hp -= rawDmg;
+               FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#ef4444');
+           }
+        }
+        
+        // Ultimate Charge on Damage Taken
+        player.ultimateCharge = Math.min(100, player.ultimateCharge + (ignoreShield ? damage : Math.max(1, damage - player.stats.defense)));
+
+        if (!ignoreShield) {
+            timers.invincibility.current = 30; 
+            timers.slowed.current = 30;
+        }
+    } else {
+        if (!silent) FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, "BLOCKED", '#94a3b8');
+    }
 };
 
 export const drawPlayer = (

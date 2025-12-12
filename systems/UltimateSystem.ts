@@ -1,9 +1,10 @@
 
-import { Player, Enemy, UltimateType, TalentType, Item } from '../types';
+import { Player, Enemy, UltimateType, TalentType, Item, Terrain } from '../types';
 
 interface UltimateContext {
     player: Player;
     enemies: Enemy[];
+    terrain: Terrain[];
     spawnFloatingText: (x: number, y: number, text: string, color: string, isCrit?: boolean) => void;
     timeStopRef: { current: number };
     invincibilityRef: { current: number };
@@ -12,7 +13,7 @@ interface UltimateContext {
 }
 
 export const activateUltimate = (context: UltimateContext) => {
-    const { player: p, enemies, spawnFloatingText, timeStopRef, invincibilityRef, speedBoostRef, omniForceRef } = context;
+    const { player: p, enemies, terrain, spawnFloatingText, timeStopRef, invincibilityRef, speedBoostRef, omniForceRef } = context;
     
     if (p.ultimateCharge < 100) return;
     
@@ -70,6 +71,46 @@ export const activateUltimate = (context: UltimateContext) => {
               // 12s (720 frames)
               omniForceRef.current = Math.floor(720 * effectMult); 
               spawnFloatingText(p.x, p.y - 50, "OMNI FORCE!", '#ff0055', true);
+              break;
+            case UltimateType.BLOCK:
+              // Determine direction logic:
+              // Abs(cos) > Abs(sin) means mainly moving horizontal -> Spawn Vertical Wall
+              const isHorizontalMove = Math.abs(Math.cos(p.angle)) > Math.abs(Math.sin(p.angle));
+              
+              const wallThick = 40;
+              const baseLength = 160; // 5 body widths (32*5)
+              const wallLen = baseLength * effectMult;
+              
+              let tx, ty, w, h;
+              
+              if (isHorizontalMove) {
+                  // Facing Left/Right -> Vertical Wall (|)
+                  w = wallThick;
+                  h = wallLen;
+                  // Position ~60px in front
+                  const dir = Math.cos(p.angle) > 0 ? 1 : -1;
+                  tx = p.x + (dir * 60) - w/2; 
+                  ty = p.y - h/2;
+              } else {
+                  // Facing Up/Down -> Horizontal Wall (-)
+                  w = wallLen;
+                  h = wallThick;
+                  const dir = Math.sin(p.angle) > 0 ? 1 : -1;
+                  ty = p.y + (dir * 60) - h/2;
+                  tx = p.x - w/2;
+              }
+              
+              if (terrain) {
+                  terrain.push({
+                      id: `wall-ult-${Math.random()}`,
+                      x: tx,
+                      y: ty,
+                      width: w,
+                      height: h,
+                      type: 'WALL' // Permanent Wall
+                  });
+              }
+              spawnFloatingText(p.x, p.y - 50, "WALL!", '#78350f', true);
               break;
           }
       });

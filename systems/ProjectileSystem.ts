@@ -123,7 +123,21 @@ export const updateProjectiles = (
                   finalDamage *= 2;
               }
 
-              e.stats.hp -= finalDamage;
+              // ARMOR / SHIELD LOGIC
+              let damageToHp = finalDamage;
+              let hitShield = false;
+              if (e.stats.shield > 0) {
+                  hitShield = true;
+                  if (e.stats.shield >= finalDamage) {
+                      e.stats.shield -= finalDamage;
+                      damageToHp = 0;
+                  } else {
+                      damageToHp = finalDamage - e.stats.shield;
+                      e.stats.shield = 0;
+                  }
+              }
+
+              e.stats.hp -= damageToHp;
               
               // BOSS TRIGGER LOGIC
               if (e.type === 'BOSS' && e.bossAbilities) {
@@ -160,7 +174,11 @@ export const updateProjectiles = (
               
               // Color Logic based on Element Matchup
               let textColor = '#ffffff'; // Default Neutral
-              if (multiplier > 1.1) {
+              
+              if (hitShield && damageToHp <= 0) {
+                  // Blocked by Armor entirely
+                  textColor = '#cbd5e1'; // Silver
+              } else if (multiplier > 1.1) {
                   // Advantage: Attacker color
                   textColor = ELEMENT_CONFIG[proj.element].color; 
               } else if (multiplier < 0.9) {
@@ -174,19 +192,26 @@ export const updateProjectiles = (
               
               spawnFloatingText(e.x, e.y - 20, textStr, textColor, isCrit);
               
-              const kbStrength = proj.knockback;
-              let angle = 0;
-              if (proj.isMelee) {
-                  angle = Math.atan2(e.y - player.y, e.x - player.x);
+              // KNOCKBACK LOGIC
+              // Only apply knockback if Enemy Shield is depleted
+              if (e.stats.shield <= 0) {
+                  const kbStrength = proj.knockback;
+                  let angle = 0;
+                  if (proj.isMelee) {
+                      angle = Math.atan2(e.y - player.y, e.x - player.x);
+                  } else {
+                      angle = Math.atan2(proj.vy, proj.vx);
+                  }
+                  
+                  const kbX = Math.cos(angle) * kbStrength;
+                  const kbY = Math.sin(angle) * kbStrength;
+                  
+                  if (!getTerrainAt(terrain, e.x + kbX, e.y, 20, 20)?.includes('WALL')) e.x += kbX;
+                  if (!getTerrainAt(terrain, e.x, e.y + kbY, 20, 20)?.includes('WALL')) e.y += kbY;
               } else {
-                  angle = Math.atan2(proj.vy, proj.vx);
+                  // Visual feedback for blocked knockback?
+                  // Maybe small shake or sound, currently simple no-op
               }
-              
-              const kbX = Math.cos(angle) * kbStrength;
-              const kbY = Math.sin(angle) * kbStrength;
-              
-              if (!getTerrainAt(terrain, e.x + kbX, e.y, 20, 20)?.includes('WALL')) e.x += kbX;
-              if (!getTerrainAt(terrain, e.x, e.y + kbY, 20, 20)?.includes('WALL')) e.y += kbY;
 
               hit = true;
               proj.hitEnemies.add(e.id);

@@ -109,19 +109,22 @@ interface EnemyConfig {
   attackMult: number;
   color: string;
   label: string;
+  minStage: number; // Stage required to start spawning
+  spawnWeight: number; // Relative weight for random selection
 }
 
 // Reduced speedMult by ~10% across the board
 // Updated Boss stats: HpMult 25->50 (2x), AttackMult 2.5->1.25 (0.5x) to move logic out of spawn function
 export const ENEMY_TYPES_CONFIG: Record<EnemyType, EnemyConfig> = {
-  STANDARD: { hpMult: 1, speedMult: 0.50, sizeMult: 1, attackMult: 1, color: '#e94560', label: "Minion" },
-  FAST: { hpMult: 0.5, speedMult: 0.86, sizeMult: 0.7, attackMult: 0.7, color: '#fbbf24', label: "Scout" },
-  TANK: { hpMult: 2.5, speedMult: 0.29, sizeMult: 1.5, attackMult: 1.5, color: '#7e22ce', label: "Brute" },
-  RANGED: { hpMult: 0.8, speedMult: 0.43, sizeMult: 0.9, attackMult: 0.8, color: '#22c55e', label: "Shooter" },
-  BOMBER: { hpMult: 0.9, speedMult: 0.40, sizeMult: 1.1, attackMult: 2.0, color: '#f97316', label: "Bomber" },
-  INCINERATOR: { hpMult: 1.0, speedMult: 0.40, sizeMult: 1.1, attackMult: 1.5, color: '#dc2626', label: "Incinerator" },
-  ZOMBIE: { hpMult: 2, speedMult: 0.35, sizeMult: 1.1, attackMult: 2.5, color: '#65a30d', label: "Zombie" },
-  BOSS: { hpMult: 30, speedMult: 0.22, sizeMult: 3, attackMult: 1.25, color: '#4c1d95', label: "BOSS" },
+  STANDARD: { hpMult: 1, speedMult: 0.50, sizeMult: 1, attackMult: 1, color: '#e94560', label: "Minion", minStage: 1, spawnWeight: 40 },
+  FAST: { hpMult: 0.5, speedMult: 0.86, sizeMult: 0.7, attackMult: 0.7, color: '#fbbf24', label: "Scout", minStage: 2, spawnWeight: 40 },
+  TANK: { hpMult: 2.5, speedMult: 0.29, sizeMult: 1.5, attackMult: 1.5, color: '#7e22ce', label: "Brute", minStage: 2, spawnWeight: 40 },
+  RANGED: { hpMult: 0.8, speedMult: 0.43, sizeMult: 0.9, attackMult: 0.8, color: '#22c55e', label: "Shooter", minStage: 3, spawnWeight: 35 },
+  BOMBER: { hpMult: 0.9, speedMult: 0.40, sizeMult: 1.1, attackMult: 2.0, color: '#f97316', label: "Bomber", minStage: 4, spawnWeight: 25 },
+  ZOMBIE: { hpMult: 2, speedMult: 0.6, sizeMult: 1.1, attackMult: 2.5, color: '#65a30d', label: "Zombie", minStage: 5, spawnWeight: 20 },
+  INCINERATOR: { hpMult: 1.0, speedMult: 0.40, sizeMult: 1.1, attackMult: 1.5, color: '#dc2626', label: "Incinerator", minStage: 6, spawnWeight: 20 },
+  IRON_BEETLE: { hpMult: 1.5, speedMult: 0.35, sizeMult: 1.2, attackMult: 0.8, color: '#94a3b8', label: "Iron Beetle", minStage: 3, spawnWeight: 25 },
+  BOSS: { hpMult: 30, speedMult: 0.22, sizeMult: 3, attackMult: 1.25, color: '#4c1d95', label: "BOSS", minStage: 0, spawnWeight: 0 },
 };
 
 export const ELEMENT_CONFIG: Record<ElementType, { color: string, label: string, icon: string }> = {
@@ -163,9 +166,10 @@ export const ULTIMATE_DESCRIPTIONS: Record<UltimateType, string> = {
   [UltimateType.AOE_BLAST]: "Deals massive damage to all nearby enemies.",
   [UltimateType.SPEED_BOOST]: "Doubles movement and attack speed for 8s.",
   [UltimateType.SHIELD]: "Gain temporary Shield equal to 50% Max HP.",
-  [UltimateType.TIME_STOP]: "Freezes enemies in time for 6s.",
-  [UltimateType.INVINCIBILITY]: "Become immune to all damage for 5s.",
+  [UltimateType.TIME_STOP]: "Freezes enemies in time for 9s.",
+  [UltimateType.INVINCIBILITY]: "Become immune to all damage for 7.5s.",
   [UltimateType.OMNI_FORCE]: "Attacks always trigger Elemental Advantage (2x Dmg) for 12s.",
+  [UltimateType.BLOCK]: "Summons a large Stone Wall in front of you.",
 };
 
 export const COLOR_PALETTE = {
