@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Item, Player, Rarity, Stats, UltimateType, WeaponType, ElementType, ArmorType, TalentType, Talent, UpgradeReward, StatUpgrade } from '../types';
-import { RARITY_COLORS, WEAPON_BASE_CONFIG, DETAIL_COLORS, ELEMENT_CONFIG, REROLL_COST } from '../constants';
+import { RARITY_COLORS, WEAPON_BASE_CONFIG, DETAIL_COLORS, ELEMENT_CONFIG, REROLL_COST, ULTIMATE_DESCRIPTIONS } from '../constants';
 import { Shield, Sword, Axe, Crosshair, ArrowRight, Star, Heart, Zap, Move, RefreshCw, Check, X, PocketKnife, Shovel, Drill, BowArrow, Hand, Footprints, Coins, RotateCcw, Activity } from 'lucide-react';
 import { generateRandomWeapon } from '../systems/WeaponSystem';
 import { generateRandomArmor } from '../systems/ArmorSystem';
@@ -166,6 +166,17 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
 
      return (
         <div className="space-y-1 text-xs">
+           <div className="flex justify-between border-b border-gray-700 pb-1 mb-1">
+               <span className="text-gray-400 font-bold">Durability</span>
+               <div className="flex items-center gap-2">
+                   <span className={oldItem ? (oldItem.durability < 30 ? "text-red-500 font-bold" : "text-gray-500") : "text-gray-500"}>
+                       {oldItem ? Math.floor(oldItem.durability) : '-'}%
+                   </span>
+                   <ArrowRight size={12} className="text-gray-600" />
+                   <span className="font-bold text-green-400">{Math.floor(newItem.durability)}%</span>
+               </div>
+           </div>
+
            {keysArray.map(key => {
                const newVal = (newItem.stats as any)[key];
                const oldVal = oldItem ? (oldItem.stats as any)[key] : undefined;
@@ -217,6 +228,13 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                </div>
            )}
 
+           {newItem.ultimate && (
+               <div className="pt-2 mt-2 border-t border-gray-600">
+                   <span className="text-[10px] uppercase font-bold text-yellow-300 block mb-1">New Ultimate: {newItem.ultimateName}</span>
+                   <p className="text-[10px] text-gray-300 leading-tight">{ULTIMATE_DESCRIPTIONS[newItem.ultimate]}</p>
+               </div>
+           )}
+
            {/* Show Old Item's Special Properties so user knows what is lost */}
            {(oldItem?.talent || oldItem?.ultimate) && (
                <div className="pt-2 mt-2 border-t border-red-900/50">
@@ -238,85 +256,87 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
 
   if (swapMode !== 'NONE' && pendingItem) {
       return (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[70] p-6 animate-in fade-in duration-300">
-             <div className="w-full max-w-4xl text-center">
-                 <h2 className="text-2xl md:text-3xl font-bold text-white mb-6 md:mb-8">Replace which equipment?</h2>
-                 <div className="flex flex-col md:flex-row justify-center gap-4 md:gap-8 mb-6 md:mb-10">
-                     {(swapMode === 'WEAPON' || swapMode === 'ARMOR') && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[70] overflow-y-auto animate-in fade-in duration-300">
+             <div className="min-h-full flex items-center justify-center p-6">
+                 <div className="w-full max-w-4xl text-center">
+                     <h2 className="text-2xl md:text-3xl font-bold text-white mb-6 md:mb-8">Replace which equipment?</h2>
+                     <div className="flex flex-col md:flex-row justify-center gap-4 md:gap-8 mb-6 md:mb-10">
+                         {(swapMode === 'WEAPON' || swapMode === 'ARMOR') && (
+                             <div className="w-full md:w-80 bg-gray-900 border border-gray-600 rounded-xl overflow-hidden flex flex-col shadow-lg">
+                                 <div className="bg-gray-800 p-3 text-gray-300 font-bold border-b border-gray-600">
+                                     REPLACE: {swapMode === 'ARMOR' ? 'Armor Slot 1' : 'Weapon Slot 1'}
+                                 </div>
+                                 <div className="p-4 md:p-6 flex-1 flex flex-col items-center">
+                                     {swapMode === 'WEAPON' ? (
+                                        <>
+                                            {renderIcon(player.equipment.weapon1!)}
+                                            <div className="text-lg md:text-xl font-bold mt-2 mb-1 text-white">{player.equipment.weapon1!.name}</div>
+                                            {player.equipment.weapon1!.element && player.equipment.weapon1!.element !== ElementType.NONE && (
+                                                <div className="flex items-center gap-1 text-sm mb-2" style={{ color: ELEMENT_CONFIG[player.equipment.weapon1!.element].color }}>
+                                                    {ELEMENT_CONFIG[player.equipment.weapon1!.element].icon} {ELEMENT_CONFIG[player.equipment.weapon1!.element].label}
+                                                </div>
+                                            )}
+                                            <div className="w-full mt-2 md:mt-4 bg-black/40 p-3 rounded">
+                                                {renderStatComparison(pendingItem, player.equipment.weapon1)}
+                                            </div>
+                                        </>
+                                     ) : (
+                                        <>
+                                            {renderIcon(player.equipment.armor1!)}
+                                            <div className="text-lg md:text-xl font-bold mt-2 mb-1 text-white">{player.equipment.armor1!.name}</div>
+                                            <div className="w-full mt-2 md:mt-4 bg-black/40 p-3 rounded">
+                                                {renderStatComparison(pendingItem, player.equipment.armor1)}
+                                            </div>
+                                        </>
+                                     )}
+                                 </div>
+                                 <button onClick={() => handleSwapConfirm(swapMode === 'ARMOR' ? 'armor1' : 'weapon1')}
+                                    className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-3 md:py-4 transition-colors flex items-center justify-center gap-2">
+                                    <RefreshCw size={20} /> Confirm Swap
+                                 </button>
+                             </div>
+                         )}
+                         
+                         {/* Second Slot */}
                          <div className="w-full md:w-80 bg-gray-900 border border-gray-600 rounded-xl overflow-hidden flex flex-col shadow-lg">
                              <div className="bg-gray-800 p-3 text-gray-300 font-bold border-b border-gray-600">
-                                 REPLACE: {swapMode === 'ARMOR' ? 'Armor Slot 1' : 'Weapon Slot 1'}
+                                 REPLACE: {swapMode === 'ARMOR' ? 'Armor Slot 2' : 'Weapon Slot 2'}
                              </div>
                              <div className="p-4 md:p-6 flex-1 flex flex-col items-center">
                                  {swapMode === 'WEAPON' ? (
                                     <>
-                                        {renderIcon(player.equipment.weapon1!)}
-                                        <div className="text-lg md:text-xl font-bold mt-2 mb-1 text-white">{player.equipment.weapon1!.name}</div>
-                                        {player.equipment.weapon1!.element && player.equipment.weapon1!.element !== ElementType.NONE && (
-                                            <div className="flex items-center gap-1 text-sm mb-2" style={{ color: ELEMENT_CONFIG[player.equipment.weapon1!.element].color }}>
-                                                {ELEMENT_CONFIG[player.equipment.weapon1!.element].icon} {ELEMENT_CONFIG[player.equipment.weapon1!.element].label}
+                                        {renderIcon(player.equipment.weapon2!)}
+                                        <div className="text-lg md:text-xl font-bold mt-2 mb-1 text-white">{player.equipment.weapon2!.name}</div>
+                                        {player.equipment.weapon2!.element && player.equipment.weapon2!.element !== ElementType.NONE && (
+                                            <div className="flex items-center gap-1 text-sm mb-2" style={{ color: ELEMENT_CONFIG[player.equipment.weapon2!.element].color }}>
+                                                {ELEMENT_CONFIG[player.equipment.weapon2!.element].icon} {ELEMENT_CONFIG[player.equipment.weapon2!.element].label}
                                             </div>
                                         )}
                                         <div className="w-full mt-2 md:mt-4 bg-black/40 p-3 rounded">
-                                            {renderStatComparison(pendingItem, player.equipment.weapon1)}
+                                            {renderStatComparison(pendingItem, player.equipment.weapon2)}
                                         </div>
                                     </>
                                  ) : (
                                     <>
-                                        {renderIcon(player.equipment.armor1!)}
-                                        <div className="text-lg md:text-xl font-bold mt-2 mb-1 text-white">{player.equipment.armor1!.name}</div>
+                                        {renderIcon(player.equipment.armor2!)}
+                                        <div className="text-lg md:text-xl font-bold mt-2 mb-1 text-white">{player.equipment.armor2!.name}</div>
                                         <div className="w-full mt-2 md:mt-4 bg-black/40 p-3 rounded">
-                                            {renderStatComparison(pendingItem, player.equipment.armor1)}
+                                            {renderStatComparison(pendingItem, player.equipment.armor2)}
                                         </div>
                                     </>
                                  )}
                              </div>
-                             <button onClick={() => handleSwapConfirm(swapMode === 'ARMOR' ? 'armor1' : 'weapon1')}
+                             <button onClick={() => handleSwapConfirm(swapMode === 'ARMOR' ? 'armor2' : 'weapon2')}
                                 className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-3 md:py-4 transition-colors flex items-center justify-center gap-2">
                                 <RefreshCw size={20} /> Confirm Swap
                              </button>
                          </div>
-                     )}
-                     
-                     {/* Second Slot */}
-                     <div className="w-full md:w-80 bg-gray-900 border border-gray-600 rounded-xl overflow-hidden flex flex-col shadow-lg">
-                         <div className="bg-gray-800 p-3 text-gray-300 font-bold border-b border-gray-600">
-                             REPLACE: {swapMode === 'ARMOR' ? 'Armor Slot 2' : 'Weapon Slot 2'}
-                         </div>
-                         <div className="p-4 md:p-6 flex-1 flex flex-col items-center">
-                             {swapMode === 'WEAPON' ? (
-                                <>
-                                    {renderIcon(player.equipment.weapon2!)}
-                                    <div className="text-lg md:text-xl font-bold mt-2 mb-1 text-white">{player.equipment.weapon2!.name}</div>
-                                    {player.equipment.weapon2!.element && player.equipment.weapon2!.element !== ElementType.NONE && (
-                                        <div className="flex items-center gap-1 text-sm mb-2" style={{ color: ELEMENT_CONFIG[player.equipment.weapon2!.element].color }}>
-                                            {ELEMENT_CONFIG[player.equipment.weapon2!.element].icon} {ELEMENT_CONFIG[player.equipment.weapon2!.element].label}
-                                        </div>
-                                    )}
-                                    <div className="w-full mt-2 md:mt-4 bg-black/40 p-3 rounded">
-                                        {renderStatComparison(pendingItem, player.equipment.weapon2)}
-                                    </div>
-                                </>
-                             ) : (
-                                <>
-                                    {renderIcon(player.equipment.armor2!)}
-                                    <div className="text-lg md:text-xl font-bold mt-2 mb-1 text-white">{player.equipment.armor2!.name}</div>
-                                    <div className="w-full mt-2 md:mt-4 bg-black/40 p-3 rounded">
-                                        {renderStatComparison(pendingItem, player.equipment.armor2)}
-                                    </div>
-                                </>
-                             )}
-                         </div>
-                         <button onClick={() => handleSwapConfirm(swapMode === 'ARMOR' ? 'armor2' : 'weapon2')}
-                            className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-3 md:py-4 transition-colors flex items-center justify-center gap-2">
-                            <RefreshCw size={20} /> Confirm Swap
-                         </button>
                      </div>
+                     <button onClick={() => { setSwapMode('NONE'); setPendingItem(null); }}
+                        className="px-8 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg font-bold flex items-center gap-2 mx-auto">
+                        <X size={20} /> Cancel
+                     </button>
                  </div>
-                 <button onClick={() => { setSwapMode('NONE'); setPendingItem(null); }}
-                    className="px-8 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg font-bold flex items-center gap-2 mx-auto">
-                    <X size={20} /> Cancel
-                 </button>
              </div>
         </div>
       )

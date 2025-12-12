@@ -99,6 +99,7 @@ const Game: React.FC<GameProps> = ({
   const hazardsRef = useRef<Hazard[]>([]); // Hazard System
   const goldDropsRef = useRef<GoldDrop[]>([]); // Gold Drops
   const fireDamageAccumulatorRef = useRef<number>(0); // Buffer for fire damage text
+  const stageStartHpRef = useRef<number>(INITIAL_PLAYER_STATS.hp);
   
   // Optimization: Spatial Grid
   const spatialGridRef = useRef<SpatialHashGrid>(new SpatialHashGrid(150)); // 150px buckets
@@ -230,8 +231,10 @@ const Game: React.FC<GameProps> = ({
   const onStageClearWrapper = () => {
      const p = playerRef.current;
      
-     // Calculate Durability Loss using TalentSystem
-     const durabilityLoss = TalentSystem.checkDurabilityLoss(p);
+     // Calculate Durability Loss
+     const startHp = stageStartHpRef.current;
+     const endHp = p.stats.hp;
+     const durabilityLoss = TalentSystem.calculateDurabilityLoss(p, startHp, endHp);
 
      // Apply Durability Loss & Remove Broken Items
      const slots: ('weapon1' | 'weapon2' | 'armor1' | 'armor2')[] = ['weapon1', 'weapon2', 'armor1', 'armor2'];
@@ -302,6 +305,9 @@ const Game: React.FC<GameProps> = ({
     const goldCount = Math.floor(Math.random() * 5) + 1;
     goldDropsRef.current = LootSystem.spawnGold(terrainRef.current, goldCount);
 
+    // Track Start HP for durability calculation
+    stageStartHpRef.current = playerRef.current.stats.hp;
+
   }, [currentStage, initialGold]); 
 
   // Re-calculate Stats Logic
@@ -363,6 +369,10 @@ const Game: React.FC<GameProps> = ({
          }
       }
       onUpgradeApplied();
+      
+      // Update Start HP to reflect any healing or max HP changes from upgrade
+      // This ensures we don't penalize durability for the difference between old max and new max, or pre-heal and post-heal
+      stageStartHpRef.current = p.stats.hp;
     }
     
     // Always recalculate effective stats using the new system
@@ -639,17 +649,36 @@ const Game: React.FC<GameProps> = ({
       });
   };
   
-  const handleClickItem = (item: Item | null) => {
+  const handleClickItem = (item: Item | null, e: React.MouseEvent) => {
       if (!isMobile || !item) return;
+      
+      const rect = e.currentTarget.getBoundingClientRect();
+
       if (tooltip && tooltip.type === 'ITEM' && tooltip.content === item) {
           setTooltip(null);
       } else {
          setTooltip({
              type: 'ITEM',
              content: item,
-             x: window.innerWidth / 2 - 128, 
-             y: window.innerHeight / 2
+             x: rect.left, 
+             y: rect.bottom + 10
          });
+      }
+  };
+
+  const handleClickStats = (e: React.MouseEvent) => {
+      if (!isMobile) return;
+      
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (tooltip && tooltip.type === 'STATS') {
+          setTooltip(null);
+      } else {
+          setTooltip({
+              type: 'STATS',
+              content: uiState.stats,
+              x: rect.left,
+              y: rect.bottom + 10
+          });
       }
   };
 
@@ -700,7 +729,7 @@ const Game: React.FC<GameProps> = ({
             className="flex flex-col items-center cursor-help"
             onMouseEnter={(e) => handleMouseEnterItem(item, e)}
             onMouseLeave={() => !isMobile && setTooltip(null)}
-            onClick={() => handleClickItem(item)}
+            onClick={(e) => handleClickItem(item, e)}
          >
              <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-gray-800 border-2 rounded flex items-center justify-center relative transition-colors hover:bg-gray-700
                 ${item ? 'border-'+RARITY_COLORS[item.rarity].replace('#','') : 'border-gray-600'}`}
@@ -899,6 +928,7 @@ const Game: React.FC<GameProps> = ({
                     className="relative cursor-help"
                     onMouseEnter={handleMouseEnterStats}
                     onMouseLeave={() => !isMobile && setTooltip(null)}
+                    onClick={handleClickStats}
                  >
                      <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-gray-800 border-2 border-gray-600 rounded-full flex items-center justify-center hover:bg-gray-700 hover:border-white transition-colors`}>
                          <User size={isMobile ? 16 : 20} className="text-white" />

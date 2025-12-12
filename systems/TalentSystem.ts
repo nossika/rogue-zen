@@ -66,7 +66,18 @@ export const calculatePlayerStats = (player: Player) => {
     p.stats.attack = totalAttack;
 };
 
-export const checkDurabilityLoss = (player: Player): number => {
+export const calculateDurabilityLoss = (player: Player, startHp: number, endHp: number): number => {
+     // Formula: 5% Fixed + (HP Loss % * 10%)
+     // Example: Start 70, End 40. Loss 30. Max 100. Ratio 0.3.
+     // 5 + (0.3 * 100 * 0.1) = 5 + 3 = 8%.
+     
+     const maxHp = player.stats.maxHp;
+     const lostHp = Math.max(0, startHp - endHp);
+     const lostRatio = lostHp / maxHp; // 0.0 to 1.0
+     
+     // Base calculation
+     const baseLoss = 5 + (lostRatio * 10);
+
      // Calculate Durability Reduction Logic (TANK Talent)
      let durabilitySave = 0;
      const checkTank = (item: Item | null) => {
@@ -79,5 +90,5 @@ export const checkDurabilityLoss = (player: Player): number => {
 
      // Cap reduction at 100% (value of 1.0)
      const reductionMult = Math.max(0, 1.0 - durabilitySave);
-     return 5 * reductionMult; // Base loss 5% * multiplier
+     return baseLoss * reductionMult; 
 };
