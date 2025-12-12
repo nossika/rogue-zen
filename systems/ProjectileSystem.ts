@@ -11,6 +11,7 @@ export const updateProjectiles = (
     player: Player,
     terrain: Terrain[],
     spawnFloatingText: (x: number, y: number, text: string, color: string, isCrit: boolean) => void,
+    spawnSplatter: (x: number, y: number, color?: string) => void,
     onPlayerHit: (damage: number) => void,
     createHazard: (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER') => void,
     isOmniForceActive: boolean, // New parameter for Ultimate
@@ -138,6 +139,12 @@ export const updateProjectiles = (
               }
 
               e.stats.hp -= damageToHp;
+
+              // BLOOD SPLATTER LOGIC
+              if (damageToHp > 0) {
+                  // If damage went to HP, spawn blood
+                  spawnSplatter(e.x, e.y, '#ef4444');
+              }
               
               // BOSS TRIGGER LOGIC
               if (e.type === 'BOSS' && e.bossAbilities) {

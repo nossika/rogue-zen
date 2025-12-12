@@ -1,5 +1,5 @@
 
-import { Player, Enemy, Projectile, FloatingText, Terrain, Hazard, GoldDrop, Item } from '../types';
+import { Player, Enemy, Projectile, FloatingText, Terrain, Hazard, GoldDrop, Item, Particle } from '../types';
 import { MAP_WIDTH, MAP_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING, INITIAL_PLAYER_STATS } from '../constants';
 import * as TerrainSystem from './TerrainSystem';
 import * as LootSystem from './LootSystem';
@@ -15,6 +15,7 @@ interface StageSetupContext {
     goldDrops: GoldDrop[];
     terrain: Terrain[];
     fireDamageAccumulator: { current: number };
+    particles: Particle[];
     camera: { x: number; y: number };
     timers: {
         hurt: { current: number };
@@ -46,6 +47,7 @@ export const initializeStage = (ctx: StageSetupContext) => {
     ctx.floatingTexts.length = 0;
     ctx.hazards.length = 0;
     ctx.goldDrops.length = 0;
+    ctx.particles.length = 0;
     ctx.fireDamageAccumulator.current = 0;
     
     // Reset Player Position & State

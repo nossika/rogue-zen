@@ -131,13 +131,18 @@ export const updateHazards = (
                          if (e.stats.shield > 0) {
                              if (e.stats.shield >= damageTick) {
                                  e.stats.shield -= damageTick;
+                                 // Shield absorbed it, no splatter (implicitly)
                              } else {
                                  const remaining = damageTick - e.stats.shield;
                                  e.stats.shield = 0;
                                  e.stats.hp -= remaining;
+                                 // Splatter not easily triggered here because it's a constant tick... 
+                                 // visual noise might be too high if we splatter every frame.
+                                 // Let's skip splatter for continuous hazards to keep it clean, or implement an accumulator like player.
                              }
                          } else {
                              e.stats.hp -= damageTick;
+                             // Skip splatter for continuous damage ticks to avoid perf issues/visual noise
                          }
                      }
                  }

@@ -79,6 +79,7 @@ export const handlePlayerDamage = (
     damage: number,
     timers: { invincibility: { current: number }, hurt: { current: number }, slowed: { current: number } },
     floatingTexts: FloatingText[],
+    spawnSplatter: (x: number, y: number, color?: string) => void,
     ignoreShield: boolean = false,
     silent: boolean = false
 ) => {
@@ -95,6 +96,7 @@ export const handlePlayerDamage = (
     if (!isBlocked) {
         if (ignoreShield) {
             player.stats.hp -= damage;
+            spawnSplatter(player.x, player.y, '#ef4444'); // Always splatter on direct HP damage
             if (!silent && damage >= 1) {
                 FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(damage)}`, '#ef4444');
             }
@@ -104,14 +106,17 @@ export const handlePlayerDamage = (
                if (player.stats.shield >= rawDmg) {
                    player.stats.shield -= rawDmg;
                    FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#9ca3af');
+                   // No Splatter - Shield Absorbed
                } else {
                    const remaining = rawDmg - player.stats.shield;
                    player.stats.shield = 0;
                    player.stats.hp -= remaining;
+                   spawnSplatter(player.x, player.y, '#ef4444'); // Splatter on bleed-through
                    FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#ef4444');
                }
            } else {
                player.stats.hp -= rawDmg;
+               spawnSplatter(player.x, player.y, '#ef4444'); // Splatter on full HP hit
                FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#ef4444');
            }
         }

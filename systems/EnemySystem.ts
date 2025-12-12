@@ -348,6 +348,7 @@ export const updateEnemies = (
     projectiles: Projectile[], 
     isTimeStop: boolean,
     spawnFloatingText: (x: number, y: number, text: string, color: string, isCrit: boolean) => void,
+    spawnSplatter: (x: number, y: number, color?: string) => void,
     onPlayerHit: (damage: number) => void,
     handleCreateHazard?: (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER') => void,
     grid?: SpatialHashGrid // Optional for backward compatibility but used for optimization

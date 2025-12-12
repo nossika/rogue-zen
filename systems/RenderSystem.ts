@@ -1,5 +1,5 @@
 
-import { Player, Enemy, Projectile, Terrain, Hazard, GoldDrop, FloatingText, GameAssets, SpatialHashGrid } from '../types';
+import { Player, Enemy, Projectile, Terrain, Hazard, GoldDrop, FloatingText, GameAssets, SpatialHashGrid, Particle } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, COLOR_PALETTE, ELEMENT_CONFIG, DETAIL_COLORS } from '../constants';
 import * as TerrainSystem from './TerrainSystem';
 import * as HazardSystem from './HazardSystem';
@@ -7,6 +7,7 @@ import * as LootSystem from './LootSystem';
 import * as PlayerSystem from './PlayerSystem';
 import * as EnemySystem from './EnemySystem';
 import * as ProjectileSystem from './ProjectileSystem';
+import * as ParticleSystem from './ParticleSystem';
 
 interface DrawContext {
     ctx: CanvasRenderingContext2D;
@@ -18,6 +19,7 @@ interface DrawContext {
     enemies: Enemy[];
     projectiles: Projectile[];
     floatingTexts: FloatingText[];
+    particles: Particle[];
     assets: GameAssets;
     hurtTimer: number;
     invincibilityTimer: number;
@@ -34,6 +36,7 @@ export const drawGame = ({
     enemies,
     projectiles,
     floatingTexts,
+    particles,
     assets,
     hurtTimer,
     invincibilityTimer,
@@ -96,6 +99,9 @@ export const drawGame = ({
     PlayerSystem.drawPlayer(ctx, player, assets, hurtTimer, invincibilityTimer);
     enemies.forEach(e => EnemySystem.drawEnemy(ctx, e, assets));
     projectiles.forEach(proj => ProjectileSystem.drawProjectile(ctx, proj));
+    
+    // Visual Effects
+    ParticleSystem.drawParticles(ctx, particles);
 
     // Floating Text
     floatingTexts.forEach(ft => {

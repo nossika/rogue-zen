@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, Rarity, FloatingText, Terrain, ElementType, ArmorType, Hazard, HazardType, GoldDrop, TalentType, SpatialHashGrid, UpgradeReward } from '../types';
+import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, Rarity, FloatingText, Terrain, ElementType, ArmorType, Hazard, HazardType, GoldDrop, TalentType, SpatialHashGrid, UpgradeReward, Particle } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, RARITY_COLORS, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING, TERRAIN_CONFIG, ELEMENT_CONFIG, ULTIMATE_DESCRIPTIONS, DETAIL_COLORS, GOLD_VALUES } from '../constants';
 import { Shield, Zap, Clock, Star, Flame, Bomb, User, Sword, Axe, Crosshair, HelpCircle, PocketKnife, Shovel, Drill, BowArrow, Hand, Footprints, Target, Coins, Wrench, BrickWall } from 'lucide-react';
 
@@ -18,6 +18,7 @@ import * as RenderSystem from '../systems/RenderSystem';
 import * as CameraSystem from '../systems/CameraSystem';
 import * as StageSystem from '../systems/StageSystem';
 import * as FloatingTextSystem from '../systems/FloatingTextSystem';
+import * as ParticleSystem from '../systems/ParticleSystem';
 
 // Hooks
 import { useGameInput } from '../hooks/useGameInput';
@@ -100,6 +101,7 @@ const Game: React.FC<GameProps> = ({
   const terrainRef = useRef<Terrain[]>([]);
   const hazardsRef = useRef<Hazard[]>([]); // Hazard System
   const goldDropsRef = useRef<GoldDrop[]>([]); // Gold Drops
+  const particlesRef = useRef<Particle[]>([]); // Visual Particles
   const fireDamageAccumulatorRef = useRef<number>(0); // Buffer for fire damage text
   const stageStartHpRef = useRef<number>(INITIAL_PLAYER_STATS.hp);
   
@@ -198,6 +200,10 @@ const Game: React.FC<GameProps> = ({
     FloatingTextSystem.createFloatingText(floatingTextsRef.current, x, y, text, color, isCrit);
   };
 
+  const spawnSplatter = (x: number, y: number, color?: string) => {
+      ParticleSystem.createBloodSplatter(particlesRef.current, x, y, color);
+  };
+
   const handleActivateUltimate = () => {
       UltimateSystem.activateUltimate({
           player: playerRef.current,
@@ -232,6 +238,7 @@ const Game: React.FC<GameProps> = ({
         goldDrops: goldDropsRef.current,
         terrain: terrainRef.current,
         fireDamageAccumulator: fireDamageAccumulatorRef,
+        particles: particlesRef.current,
         camera: cameraRef.current,
         timers: {
             hurt: hurtTimerRef,
@@ -335,6 +342,7 @@ const Game: React.FC<GameProps> = ({
               slowed: slowedTimerRef
           },
           floatingTextsRef.current,
+          spawnSplatter, // Pass splatter callback
           ignoreShield,
           silent
       );
@@ -364,6 +372,7 @@ const Game: React.FC<GameProps> = ({
     if (cooldown2Ref.current > 0) cooldown2Ref.current--;
 
     FloatingTextSystem.updateFloatingTexts(floatingTextsRef.current);
+    ParticleSystem.updateParticles(particlesRef.current);
     
     // --- UPDATES VIA SYSTEMS ---
     LootSystem.updateLoot(p, goldDropsRef.current, spawnFloatingText);
@@ -397,8 +406,9 @@ const Game: React.FC<GameProps> = ({
         projectilesRef.current, 
         timeStopRef.current > 0, 
         spawnFloatingText,
+        spawnSplatter, // Pass splatter callback
         handlePlayerHit,
-        handleCreateHazard, // Pass hazard creation logic
+        handleCreateHazard, 
         spatialGridRef.current 
     );
 
@@ -411,6 +421,7 @@ const Game: React.FC<GameProps> = ({
         p, 
         terrainRef.current, 
         spawnFloatingText,
+        spawnSplatter, // Pass splatter callback
         handlePlayerHit,
         handleCreateHazard,
         omniForceRef.current > 0, // Is OMNI FORCE active
@@ -503,6 +514,7 @@ const Game: React.FC<GameProps> = ({
           enemies: enemiesRef.current,
           projectiles: projectilesRef.current,
           floatingTexts: floatingTextsRef.current,
+          particles: particlesRef.current,
           assets,
           hurtTimer: hurtTimerRef.current,
           invincibilityTimer: invincibilityRef.current,
@@ -554,6 +566,8 @@ const Game: React.FC<GameProps> = ({
   const handleClickItem = (item: Item | null, e: React.MouseEvent) => {
       if (!isMobile || !item) return;
       
+      e.stopPropagation(); // Prevent background click from closing tooltip immediately
+
       const rect = e.currentTarget.getBoundingClientRect();
 
       if (tooltip && tooltip.type === 'ITEM' && tooltip.content === item) {
@@ -571,6 +585,8 @@ const Game: React.FC<GameProps> = ({
   const handleClickStats = (e: React.MouseEvent) => {
       if (!isMobile) return;
       
+      e.stopPropagation(); // Prevent background click
+
       const rect = e.currentTarget.getBoundingClientRect();
       if (tooltip && tooltip.type === 'STATS') {
           setTooltip(null);
@@ -605,6 +621,8 @@ const Game: React.FC<GameProps> = ({
   const handleClickUlt = (e: React.MouseEvent) => {
       if (!isMobile) return;
       
+      e.stopPropagation(); // Prevent background click
+
       const p = playerRef.current;
       const ults: UltimateType[] = [];
       if (p.equipment.weapon1?.ultimate) ults.push(p.equipment.weapon1.ultimate);
@@ -763,7 +781,10 @@ const Game: React.FC<GameProps> = ({
           <div 
             className="fixed z-[60] bg-gray-900/95 border border-gray-500 rounded-lg p-3 shadow-xl text-xs w-64 animate-in fade-in duration-200"
             style={{ top: tooltip.y, left: tooltip.x }}
-            onClick={() => setTooltip(null)} 
+            onClick={(e) => {
+                e.stopPropagation(); // Clicking tooltip itself shouldn't trigger background click (redundant but safe)
+                setTooltip(null);
+            }} 
           >
               {tooltip.type === 'ITEM' ? (
                   (() => {
@@ -866,7 +887,10 @@ const Game: React.FC<GameProps> = ({
   const shieldPercent = (uiState.shield / effectiveMax) * 100;
 
   return (
-    <div className="relative w-full h-full shadow-2xl rounded-xl overflow-hidden border-4 border-gray-700 bg-black touch-none mx-auto">
+    <div 
+        className="relative w-full h-full shadow-2xl rounded-xl overflow-hidden border-4 border-gray-700 bg-black touch-none mx-auto"
+        onClick={() => { if(tooltip) setTooltip(null); }}
+    >
       <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="block w-full h-full object-contain bg-[#1a1a2e]" />
       <img id="player-asset-img" src={assets.playerSprite || ''} className="hidden" alt="" />
       <img id="enemy-asset-img" src={assets.enemySprite || ''} className="hidden" alt="" />

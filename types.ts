@@ -195,6 +195,18 @@ export interface Projectile {
   maxDuration?: number; // Total flight time for lerping if needed, reusing duration currently
 }
 
+export interface Particle {
+    id: string;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    life: number;
+    maxLife: number;
+    color: string;
+    size: number;
+}
+
 export interface GameAssets {
   playerSprite: string | null;
   enemySprite: string | null;
