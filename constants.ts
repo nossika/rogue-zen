@@ -1,5 +1,5 @@
 
-import { Rarity, UltimateType, WeaponType, EnemyType, TerrainType, ElementType } from './types';
+import { Rarity, UltimateType, WeaponType, EnemyType, TerrainType, ElementType, TalentType, TalentDefinition, UltimateDefinition } from './types';
 
 // Detect mobile device width (simplified check)
 const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -8,8 +8,12 @@ const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 export const CANVAS_WIDTH = isMobile ? 600 : 1200;
 export const CANVAS_HEIGHT = isMobile ? 400 : 800;
 
-export const MAP_WIDTH = 2500;
-export const MAP_HEIGHT = 2500;
+// Map Reduced by approx 1/3 (Area)
+// Original: 2500x2500 = 6.25M
+// Reduced 1 (Previous): 2050x2050
+// Reduced 2 (Current): 1600x1600 = 2.56M
+export const MAP_WIDTH = 1600;
+export const MAP_HEIGHT = 1600;
 
 export const INITIAL_PLAYER_STATS = {
   maxHp: 150,
@@ -29,14 +33,14 @@ export const INITIAL_PLAYER_STATS = {
 };
 
 export const GOLD_VALUES = {
-  NUGGET: 25,
+  NUGGET: 30,
   ENEMY_KILL: 1,
   BOSS_KILL: 100,
   MINION_KILL: 0,
 };
 
 export const REROLL_COST = {
-  BASE: 100,
+  BASE: 80,
   INCREMENT: 20,
 };
 
@@ -100,6 +104,12 @@ export const WEAPON_BASE_CONFIG: Record<WeaponType, WeaponConfig> = {
     penetrate: false, 
     name: "Bow" 
   },
+  BOMB: {
+    baseStats: { attack: 35, attackSpeed: 0.4, range: 250, knockback: 30, critChance: 0.10, armorOnHit: 0 },
+    color: '#1f2937', 
+    penetrate: true, 
+    name: "Bomb"
+  }
 };
 
 interface EnemyConfig {
@@ -132,7 +142,7 @@ export const ELEMENT_CONFIG: Record<ElementType, { color: string, label: string,
   [ElementType.FIRE]: { color: '#ef4444', label: 'Fire', icon: '🔥' },
   [ElementType.WATER]: { color: '#3b82f6', label: 'Water', icon: '💧' },
   [ElementType.GRASS]: { color: '#22c55e', label: 'Grass', icon: '🌿' },
-  [ElementType.EARTH]: { color: '#a855f7', label: 'Earth', icon: '🪨' }, 
+  [ElementType.EARTH]: { color: '#654321', label: 'Earth', icon: '🪨' }, 
 };
 
 // Cycle: Water > Fire > Grass > Earth > Water
@@ -162,15 +172,98 @@ export const TERRAIN_CONFIG: Record<TerrainType, { color: string, label: string 
   MUD: { color: 'rgba(67, 20, 7, 0.7)', label: 'Mud' }, // Rusty brown
 };
 
-export const ULTIMATE_DESCRIPTIONS: Record<UltimateType, string> = {
-  [UltimateType.AOE_BLAST]: "Deals massive damage to all nearby enemies.",
-  [UltimateType.SPEED_BOOST]: "Doubles movement and attack speed for 8s.",
-  [UltimateType.SHIELD]: "Gain temporary Shield equal to 50% Max HP.",
-  [UltimateType.TIME_STOP]: "Freezes enemies in time for 9s.",
-  [UltimateType.INVINCIBILITY]: "Become immune to all damage for 7.5s.",
-  [UltimateType.OMNI_FORCE]: "Attacks always trigger Elemental Advantage (2x Dmg) for 12s.",
-  [UltimateType.BLOCK]: "Summons a large Stone Wall in front of you.",
+// --- CONFIGURATION: ULTIMATES ---
+export const ULTIMATE_CONFIG: Record<UltimateType, UltimateDefinition> = {
+  [UltimateType.AOE_BLAST]: {
+    weight: 20,
+    description: "Deals massive damage to all nearby enemies.",
+    baseAmount: 8 // Damage Multiplier (Attack + 50) * 8
+  },
+  [UltimateType.SPEED_BOOST]: {
+    weight: 20,
+    description: "Doubles movement and attack speed for 12s.",
+    duration: 720 // frames (12s)
+  },
+  [UltimateType.SHIELD]: {
+    weight: 25,
+    description: "Gain temporary Shield equal to 50% Max HP.",
+    baseAmount: 0.5 // 50% Max HP
+  },
+  [UltimateType.TIME_STOP]: {
+    weight: 15,
+    description: "Freezes enemies in time for 9s.",
+    duration: 540 // frames (9s)
+  },
+  [UltimateType.INVINCIBILITY]: {
+    weight: 10,
+    description: "Become immune to all damage for 7.5s.",
+    duration: 450 // frames (7.5s)
+  },
+  [UltimateType.OMNI_FORCE]: {
+    weight: 15,
+    description: "Attacks always trigger Elemental Advantage (3x Dmg) for 12s.",
+    duration: 720 // frames (12s)
+  },
+  [UltimateType.BLOCK]: {
+    weight: 20,
+    description: "Summons a large Stone Wall in front of you.",
+    baseAmount: 160 // Base wall length
+  }
 };
+
+// Helper for UI backward compatibility
+export const ULTIMATE_DESCRIPTIONS: Record<UltimateType, string> = Object.entries(ULTIMATE_CONFIG).reduce((acc, [key, val]) => {
+  acc[key as UltimateType] = val.description;
+  return acc;
+}, {} as Record<UltimateType, string>);
+
+
+// --- CONFIGURATION: TALENTS ---
+export const TALENT_CONFIG: Record<TalentType, TalentDefinition> = {
+  [TalentType.SNIPER]: {
+    weight: 20,
+    ranges: {
+      value1: [1.2, 1.8], // Range Multiplier
+      value2: [1.2, 2.0], // Damage Multiplier
+      value3: [1, 5]      // Knockback Add (Int)
+    },
+    description: (v1, v2, v3) => `Ranged Wpn: Range x${v1}, Dmg x${v2}, KB +${v3}`
+  },
+  [TalentType.FIGHTER]: {
+    weight: 20,
+    ranges: {
+      value1: [1.2, 1.8], // Speed Multiplier
+      value2: [1.2, 2.0], // Damage Multiplier
+      value3: [1.2, 2.0]  // ArmorOnHit Multiplier
+    },
+    description: (v1, v2, v3) => `Melee Wpn: Spd x${v1}, Dmg x${v2}, Armor/Hit x${v3}`
+  },
+  [TalentType.ARTISAN]: {
+    weight: 20,
+    ranges: {
+      value1: [1.5, 2.5], // Defense Multiplier
+      value2: [0.5, 1.0]  // Durability Save
+    },
+    description: (v1, v2) => `Artisan Mastery: Defense x${v1}, Durability Loss -${(v2!*100).toFixed(0)}%`
+  },
+  [TalentType.SCIENTIST]: {
+    weight: 20,
+    ranges: {
+      value1: [1.2, 2.5], // Charge Rate Multiplier (Combined range logic handled in ArmorSystem for distinctness)
+      value2: [1.2, 2.5]  // Effect Multiplier
+    },
+    description: (v1, v2) => `Ult Charge x${v1}, Ult Effect x${v2}`
+  },
+  [TalentType.LUCKY]: {
+    weight: 15,
+    ranges: {
+      value1: [0.1, 0.3], // Dodge Chance
+      value2: [1, 1]      // Free Rerolls (Fixed)
+    },
+    description: (v1) => `Free Reroll per Stage, Dodge Chance +${(v1*100).toFixed(0)}%`
+  }
+};
+
 
 export const COLOR_PALETTE = {
   background: '#1a1a2e',

@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { Item, Player, Rarity, Stats, UltimateType, WeaponType, ElementType, ArmorType, TalentType, Talent, UpgradeReward, StatUpgrade } from '../types';
 import { RARITY_COLORS, WEAPON_BASE_CONFIG, DETAIL_COLORS, ELEMENT_CONFIG, REROLL_COST, ULTIMATE_DESCRIPTIONS } from '../constants';
-import { Shield, Sword, Axe, Crosshair, ArrowRight, Star, Heart, Zap, Move, RefreshCw, Check, X, PocketKnife, Shovel, Drill, BowArrow, Hand, Footprints, Coins, RotateCcw, Activity } from 'lucide-react';
+import { Shield, Sword, Axe, Crosshair, ArrowRight, Star, Heart, Zap, Move, RefreshCw, Check, X, PocketKnife, Shovel, Drill, BowArrow, Hand, Footprints, Coins, RotateCcw, Activity, Bomb } from 'lucide-react';
 import { generateRandomWeapon } from '../systems/WeaponSystem';
 import { generateRandomArmor } from '../systems/ArmorSystem';
 
@@ -151,6 +151,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
           case 'SPEAR': return <Shovel size={size} className="text-white drop-shadow-md -rotate-45" />;
           case 'SNIPER': return <Crosshair size={size} className="text-red-400 drop-shadow-md" />;
           case 'BOW': return <BowArrow size={size} className="text-white drop-shadow-md rotate-45" />; 
+          case 'BOMB': return <Bomb size={size} className="text-gray-400 drop-shadow-md" />;
           default: return <Sword size={size} className="text-white drop-shadow-md" />;
       }
   };

@@ -328,8 +328,8 @@ const Game: React.FC<GameProps> = ({
   }, [upgradeChosen, onUpgradeApplied]);
 
   // Handle Hazard Creation Wrapper to pass into ProjectileSystem
-  const handleCreateHazard = (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER') => {
-      HazardSystem.createHazard(hazardsRef.current, x, y, radius, damage, type, source);
+  const handleCreateHazard = (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER', element: ElementType = ElementType.NONE, critChance: number = 0) => {
+      HazardSystem.createHazard(hazardsRef.current, x, y, radius, damage, type, source, element, critChance);
   };
 
   const handlePlayerHit = (damage: number, ignoreShield = false, silent = false) => {
@@ -385,7 +385,8 @@ const Game: React.FC<GameProps> = ({
         dt, 
         fireDamageAccumulatorRef, 
         spawnFloatingText, 
-        handlePlayerHit
+        handlePlayerHit,
+        spawnSplatter
     );
 
     // Spawning logic (Paused during time stop)
@@ -663,6 +664,7 @@ const Game: React.FC<GameProps> = ({
           case 'SPEAR': return <Shovel size={size} className="-rotate-45" />;
           case 'SNIPER': return <Crosshair size={size} className="text-red-400" />;
           case 'BOW': return <BowArrow size={size} className="rotate-45" />; 
+          case 'BOMB': return <Bomb size={size} className="text-gray-400" />;
           case 'SWORD': return <Sword size={size} />;
           default: return <HelpCircle size={size} />;
       }

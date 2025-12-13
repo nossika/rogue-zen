@@ -35,8 +35,8 @@ export const calculatePlayerStats = (player: Player) => {
     
     const applyTalentStats = (item: Item | null) => {
         if (!item?.talent) return;
-        if (item.talent.type === TalentType.TANK) {
-            // TANK provides defense multiplier
+        if (item.talent.type === TalentType.ARTISAN) {
+            // ARTISAN provides defense multiplier
             defenseMult += (item.talent.value1 - 1.0); 
         } else if (item.talent.type === TalentType.SCIENTIST) {
             chargeRateMult += (item.talent.value1 - 1.0);
@@ -78,10 +78,10 @@ export const calculateDurabilityLoss = (player: Player, startHp: number, endHp: 
      // Base calculation
      const baseLoss = 5 + (lostRatio * 10);
 
-     // Calculate Durability Reduction Logic (TANK Talent)
+     // Calculate Durability Reduction Logic (ARTISAN Talent)
      let durabilitySave = 0;
      const checkTank = (item: Item | null) => {
-         if (item?.talent?.type === TalentType.TANK) {
+         if (item?.talent?.type === TalentType.ARTISAN) {
              durabilitySave += (item.talent.value2 || 0);
          }
      };

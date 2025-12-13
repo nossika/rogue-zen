@@ -350,7 +350,7 @@ export const updateEnemies = (
     spawnFloatingText: (x: number, y: number, text: string, color: string, isCrit: boolean) => void,
     spawnSplatter: (x: number, y: number, color?: string) => void,
     onPlayerHit: (damage: number) => void,
-    handleCreateHazard?: (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER') => void,
+    handleCreateHazard?: (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER', element: ElementType, critChance?: number) => void,
     grid?: SpatialHashGrid // Optional for backward compatibility but used for optimization
 ) => {
     // Use a loop that allows modifying the array (for summons)
@@ -561,7 +561,8 @@ export const updateEnemies = (
             // Actually random overlap is fine for poison puddles.
             if (Math.random() < 0.05) {
                 // Damage is half attack power, but ticks rapidly
-                handleCreateHazard(e.x, e.y, 25, e.stats.attack * 0.5, 'POISON', 'ENEMY');
+                // Assigning Grass Element to Poison trail for now as default
+                handleCreateHazard(e.x, e.y, 25, e.stats.attack * 0.5, 'POISON', 'ENEMY', ElementType.GRASS);
             }
         }
 

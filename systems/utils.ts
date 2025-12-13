@@ -9,9 +9,9 @@ export const checkRectOverlap = (x1: number, y1: number, w1: number, h1: number,
 export const getElementalMultiplier = (attacker: ElementType, defender: ElementType): number => {
     if (attacker === ElementType.NONE || defender === ElementType.NONE) return 1.0;
     
-    // Check Advantage (2x)
+    // Check Advantage (3x)
     if (ELEMENT_ADVANTAGE[attacker] === defender) {
-        return 2.0;
+        return 3.0;
     }
 
     // Check Disadvantage (0.5x)
@@ -22,3 +22,19 @@ export const getElementalMultiplier = (attacker: ElementType, defender: ElementT
 
     return 1.0;
 };
+
+// Generic weighted random picker
+// items: key -> { weight: number, ... }
+export function getWeightedRandom<T extends string>(config: Record<T, { weight: number }>): T {
+    const keys = Object.keys(config) as T[];
+    const totalWeight = keys.reduce((sum, key) => sum + config[key].weight, 0);
+    
+    let random = Math.random() * totalWeight;
+    for (const key of keys) {
+        random -= config[key].weight;
+        if (random <= 0) {
+            return key;
+        }
+    }
+    return keys[0]; // Fallback
+}

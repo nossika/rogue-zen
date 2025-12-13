@@ -1,7 +1,8 @@
 
-import { Hazard, HazardType, Player, Enemy, Terrain } from '../types';
+import { Hazard, HazardType, Player, Enemy, Terrain, ElementType } from '../types';
 import * as TerrainSystem from './TerrainSystem';
-import { checkRectOverlap } from './utils';
+import { checkRectOverlap, getElementalMultiplier } from './utils';
+import { ELEMENT_CONFIG } from '../constants';
 
 export const createHazard = (
     hazards: Hazard[],
@@ -10,7 +11,9 @@ export const createHazard = (
     radius: number, 
     damage: number, 
     type: HazardType, 
-    source: 'ENEMY' | 'PLAYER'
+    source: 'ENEMY' | 'PLAYER',
+    element: ElementType = ElementType.NONE,
+    critChance: number = 0
 ) => {
     // Explosion is short, Fire/Poison are longer persistent fields
     let duration = 480; // Default for FIRE (8s)
@@ -32,7 +35,9 @@ export const createHazard = (
         type,
         tickRate: 0,
         tickTimer: 0,
-        source
+        source,
+        element,
+        critChance
     });
 };
 
@@ -43,8 +48,9 @@ export const updateHazards = (
     terrain: Terrain[],
     dt: number,
     fireDamageAccumulatorRef: { current: number },
-    spawnFloatingText: (x: number, y: number, text: string, color: string) => void,
-    handlePlayerHit: (damage: number, ignoreShield: boolean, silent: boolean) => void
+    spawnFloatingText: (x: number, y: number, text: string, color: string, isCrit: boolean) => void,
+    handlePlayerHit: (damage: number, ignoreShield: boolean, silent: boolean) => void,
+    spawnSplatter?: (x: number, y: number, color?: string) => void
 ) => {
     for (let i = hazards.length - 1; i >= 0; i--) {
         const h = hazards[i];
@@ -55,10 +61,71 @@ export const updateHazards = (
         if (h.type === 'EXPLOSION') {
             if (h.duration === h.maxDuration - 1) shouldDamage = true;
             if (shouldDamage) {
-                // Damage Player
-                const dPlayer = Math.sqrt((player.x - h.x)**2 + (player.y - h.y)**2);
-                if (dPlayer < h.radius + player.width/2) {
-                    handlePlayerHit(h.damage, false, false);
+                
+                if (h.source === 'ENEMY') {
+                    // Damage Player
+                    const dPlayer = Math.sqrt((player.x - h.x)**2 + (player.y - h.y)**2);
+                    if (dPlayer < h.radius + player.width/2) {
+                        handlePlayerHit(h.damage, false, false);
+                    }
+                } else if (h.source === 'PLAYER') {
+                    // Damage Enemies
+                    enemies.forEach(e => {
+                        const d = Math.sqrt((e.x - h.x)**2 + (e.y - h.y)**2);
+                        if (d < h.radius + e.width/2) {
+                            
+                            // Elemental Calculation
+                            let multiplier = 1.0;
+                            if (h.source === 'PLAYER') {
+                                multiplier = getElementalMultiplier(h.element, e.element);
+                            }
+                            
+                            // Crit Calculation
+                            const isCrit = Math.random() < (h.critChance || 0);
+                            
+                            // Apply elemental multiplier & Crit
+                            let finalDamage = h.damage * multiplier;
+                            if (isCrit) finalDamage *= 2;
+                            
+                            // Damage Application logic
+                            let damageToHp = finalDamage;
+                            let hitShield = false;
+                            
+                            if (e.stats.shield > 0) {
+                                hitShield = true;
+                                if (e.stats.shield >= finalDamage) {
+                                    e.stats.shield -= finalDamage;
+                                    damageToHp = 0;
+                                } else {
+                                    damageToHp = finalDamage - e.stats.shield;
+                                    e.stats.shield = 0;
+                                }
+                            }
+                            
+                            e.stats.hp -= damageToHp;
+                            
+                            // Visuals
+                            if (damageToHp > 0) {
+                                if (spawnSplatter) spawnSplatter(e.x, e.y, '#ef4444');
+                            }
+                            
+                            // Color logic based on multiplier
+                            let textColor = '#ffffff'; // Default neutral (White)
+                            
+                            if (hitShield && damageToHp <= 0) {
+                                textColor = '#cbd5e1'; // Silver (Blocked)
+                            } else if (multiplier >= 3.0) {
+                                textColor = ELEMENT_CONFIG[h.element].color; // Strong Element Color
+                            } else if (multiplier <= 0.5) {
+                                textColor = '#9ca3af'; // Gray (Weak)
+                            }
+                            
+                            let textStr = Math.round(finalDamage).toString();
+                            if (isCrit) textStr += "!";
+                            
+                            spawnFloatingText(e.x, e.y - 20, textStr, textColor, isCrit);
+                        }
+                    });
                 }
 
                 // Damage Earth Walls (Destructible Terrain)
@@ -106,7 +173,7 @@ export const updateHazards = (
                     handlePlayerHit(damageTick, true, true); 
                     if (fireDamageAccumulatorRef.current >= 5) {
                         const color = h.type === 'POISON' ? '#a3e635' : '#ef4444';
-                        spawnFloatingText(player.x, player.y - 30, `${Math.floor(fireDamageAccumulatorRef.current)}`, color);
+                        spawnFloatingText(player.x, player.y - 30, `${Math.floor(fireDamageAccumulatorRef.current)}`, color, false);
                         fireDamageAccumulatorRef.current = 0;
                     }
                 }
@@ -161,7 +228,16 @@ export const drawHazards = (ctx: CanvasRenderingContext2D, hazards: Hazard[], te
         if (h.type === 'EXPLOSION') {
             ctx.translate(h.x, h.y);
             const progress = 1 - (h.duration / h.maxDuration);
-            ctx.fillStyle = `rgba(239, 68, 68, ${1 - progress})`; 
+            // Color based on Element?
+            let color = '239, 68, 68'; // Red default
+            if (h.element !== ElementType.NONE && ELEMENT_CONFIG[h.element]) {
+                const hex = ELEMENT_CONFIG[h.element].color;
+                // Convert hex to rgb for rgba usage (simple approximation or keep red for explosion feel)
+                // Let's keep the explosion visual consistently fiery/orange unless we want colored explosions.
+                // Standard game feel usually keeps explosions orange/red.
+            }
+            
+            ctx.fillStyle = `rgba(${color}, ${1 - progress})`; 
             ctx.beginPath(); ctx.arc(0, 0, h.radius * progress, 0, Math.PI*2); ctx.fill();
             ctx.strokeStyle = `rgba(255, 200, 0, ${1 - progress})`;
             ctx.lineWidth = 4;

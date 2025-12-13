@@ -326,7 +326,7 @@ const App: React.FC = () => {
                       </div>
                       
                       <div className="text-center mt-6 text-xs md:text-sm text-gray-400">
-                          <span className="text-green-400 font-bold">3.0x Damage</span> vs Weakness &nbsp;|&nbsp; <span className="text-red-400 font-bold">0.5x Damage</span> vs Resistance
+                          <span className="text-green-400 font-bold">3.0x Damage</span> vs Weakness &nbsp;|&nbsp; <span className="text-gray-500 font-bold">0.5x Damage</span> vs Resistance
                       </div>
                   </div>
 

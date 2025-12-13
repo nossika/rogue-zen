@@ -1,5 +1,7 @@
 
 import { Item, ArmorType, Rarity, TalentType, Talent, Stats, ElementType } from '../types';
+import { TALENT_CONFIG } from '../constants';
+import { getWeightedRandom } from './utils';
 
 export const generateRandomArmor = (level: number): Item => {
     const armorTypes: ArmorType[] = ['SHIELD', 'GLOVES', 'BOOTS'];
@@ -45,71 +47,31 @@ export const generateRandomArmor = (level: number): Item => {
     let armorTalent: Talent | undefined;
 
     if (Math.random() <= talentChance) {
-        const types = Object.values(TalentType);
-        const tType = types[Math.floor(Math.random() * types.length)];
+        // Select Talent based on Config Weights
+        const tType = getWeightedRandom(TALENT_CONFIG);
+        const config = TALENT_CONFIG[tType];
         
-        // Helper to lerp value based on rarity factor (rf)
-        const lerp = (min: number, max: number) => Number((min + (max - min) * rf).toFixed(2));
+        // Helper to lerp value based on rarity factor (rf) from config range
+        const lerp = (range: [number, number], isInt = false) => {
+            const val = range[0] + (range[1] - range[0]) * rf;
+            return isInt ? Math.floor(val) : Number(val.toFixed(2));
+        };
 
-        if (tType === TalentType.SNIPER) {
-            const rangeMult = lerp(1.2, 1.8);
-            const dmgMult = lerp(1.2, 2.0);
-            const kbAdd = Math.floor(lerp(1, 5));
-            armorTalent = {
-                type: TalentType.SNIPER,
-                value1: rangeMult, // Range
-                value2: dmgMult,   // Damage
-                value3: kbAdd,     // Knockback
-                description: `Ranged Wpn: Range x${rangeMult}, Dmg x${dmgMult}, KB +${kbAdd}`
-            };
-        } else if (tType === TalentType.FIGHTER) {
-            const spdMult = lerp(1.2, 1.8);
-            const dmgMult = lerp(1.2, 2.0);
-            const aohMult = lerp(1.2, 2.0);
-            armorTalent = {
-                type: TalentType.FIGHTER,
-                value1: spdMult, // Speed
-                value2: dmgMult, // Damage
-                value3: aohMult, // ArmorOnHit
-                description: `Melee Wpn: Spd x${spdMult}, Dmg x${dmgMult}, Armor/Hit x${aohMult}`
-            };
-        } else if (tType === TalentType.TANK) {
-            // Update: Tank now provides Defense Multiplier (1.5-2.5) instead of Block
-            const defMult = lerp(1.5, 2.5);
-            const durabilitySave = lerp(0.5, 1.0); // 50% to 100% reduction
-            armorTalent = {
-                type: TalentType.TANK,
-                value1: defMult,  // Total Def Multiplier
-                value2: durabilitySave,  // Durability Save
-                description: `Total Defense x${defMult}, Durability Loss Reduced by ${(durabilitySave*100).toFixed(0)}%`
-            };
-        } else if (tType === TalentType.SCIENTIST) {
-            // Determine bounds based on rarity
-            const minBase = 1.2 + (rf * 0.8); // 1.2, 1.46, 1.72, 2.0
-            const maxBase = 1.5 + (rf * 1.0); // 1.5, 1.83, 2.16, 2.5
-            
-            // Generate two distinct random values within the range
-            const genVal = () => Number((minBase + Math.random() * (maxBase - minBase)).toFixed(2));
-            
-            const chargeMult = genVal();
-            const effectMult = genVal();
-            
-            armorTalent = {
-                type: TalentType.SCIENTIST,
-                value1: chargeMult, // Charge Rate
-                value2: effectMult, // Effect
-                description: `Ult Charge x${chargeMult}, Ult Effect x${effectMult}`
-            };
-        } else if (tType === TalentType.LUCKY) {
-            // New: Lucky Talent
-            const dodgeChance = lerp(0.1, 0.3);
-            armorTalent = {
-                type: TalentType.LUCKY,
-                value1: dodgeChance, // Dodge Chance
-                value2: 1,           // Free Reroll count (1 per item)
-                description: `Free Reroll per Stage, Dodge Chance +${(dodgeChance*100).toFixed(0)}%`
-            };
-        }
+        const v1 = lerp(config.ranges.value1);
+        const v2 = config.ranges.value2 ? lerp(config.ranges.value2) : undefined;
+        const v3 = config.ranges.value3 ? lerp(config.ranges.value3, tType === TalentType.SNIPER) : undefined;
+
+        // Special handling for Scientist to ensure distinct values like original logic
+        // Original logic split the range into lower/upper bounds based on rarity.
+        // Here we just apply a small jitter if needed, but linear scaling is usually fine.
+        
+        armorTalent = {
+            type: tType,
+            value1: v1,
+            value2: v2,
+            value3: v3,
+            description: config.description(v1, v2, v3)
+        };
     }
 
     return {

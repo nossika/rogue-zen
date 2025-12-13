@@ -1,5 +1,6 @@
 
 import { Player, Enemy, UltimateType, TalentType, Item, Terrain } from '../types';
+import { ULTIMATE_CONFIG } from '../constants';
 
 interface UltimateContext {
     player: Player;
@@ -34,13 +35,16 @@ export const activateUltimate = (context: UltimateContext) => {
     if (activeUltimates.size > 0) {
       p.ultimateCharge = 0;
       activeUltimates.forEach(ult => {
+          const config = ULTIMATE_CONFIG[ult];
+          
           switch (ult) {
             case UltimateType.AOE_BLAST:
+              const multiplier = config.baseAmount || 8;
               enemies.forEach(e => {
                 const dx = e.x - p.x;
                 const dy = e.y - p.y;
                 if (Math.sqrt(dx*dx + dy*dy) < 400) {
-                  const dmg = (p.stats.attack + 50) * 8 * effectMult; 
+                  const dmg = (p.stats.attack + 50) * multiplier * effectMult; 
                   e.stats.hp -= dmg;
                   spawnFloatingText(e.x, e.y - 20, Math.round(dmg).toString(), '#fbbf24', true);
                 }
@@ -48,28 +52,25 @@ export const activateUltimate = (context: UltimateContext) => {
               spawnFloatingText(p.x, p.y - 70, "BLAST!", '#fbbf24', true);
               break;
             case UltimateType.SHIELD:
-              const shieldAmount = (p.stats.maxHp * 0.5) * effectMult;
+              const percent = config.baseAmount || 0.5;
+              const shieldAmount = (p.stats.maxHp * percent) * effectMult;
               p.stats.shield += shieldAmount;
               spawnFloatingText(p.x, p.y - 40, "SHIELD UP!", '#06b6d4', true);
               break;
             case UltimateType.TIME_STOP:
-              // Buffed: 6s -> 9s (540 frames)
-              timeStopRef.current = Math.floor(540 * effectMult); 
+              timeStopRef.current = Math.floor((config.duration || 540) * effectMult); 
               spawnFloatingText(p.x, p.y - 50, "TIME STOP!", '#a855f7', true);
               break;
             case UltimateType.INVINCIBILITY:
-              // Buffed: 5s -> 7.5s (450 frames)
-              invincibilityRef.current = Math.floor(450 * effectMult); 
+              invincibilityRef.current = Math.floor((config.duration || 450) * effectMult); 
               spawnFloatingText(p.x, p.y - 60, "INVINCIBLE!", '#fbbf24', true);
               break;
             case UltimateType.SPEED_BOOST:
-              // Buffed: 8s -> 12s (720 frames)
-              speedBoostRef.current = Math.floor(720 * effectMult); 
+              speedBoostRef.current = Math.floor((config.duration || 720) * effectMult); 
               spawnFloatingText(p.x, p.y - 50, "SPEED UP!", '#38bdf8', true);
               break;
             case UltimateType.OMNI_FORCE:
-              // 12s (720 frames)
-              omniForceRef.current = Math.floor(720 * effectMult); 
+              omniForceRef.current = Math.floor((config.duration || 720) * effectMult); 
               spawnFloatingText(p.x, p.y - 50, "OMNI FORCE!", '#ff0055', true);
               break;
             case UltimateType.BLOCK:
@@ -78,7 +79,7 @@ export const activateUltimate = (context: UltimateContext) => {
               const isHorizontalMove = Math.abs(Math.cos(p.angle)) > Math.abs(Math.sin(p.angle));
               
               const wallThick = 40;
-              const baseLength = 160; // 5 body widths (32*5)
+              const baseLength = config.baseAmount || 160; 
               const wallLen = baseLength * effectMult;
               
               let tx, ty, w, h;

@@ -13,7 +13,7 @@ export const updateProjectiles = (
     spawnFloatingText: (x: number, y: number, text: string, color: string, isCrit: boolean) => void,
     spawnSplatter: (x: number, y: number, color?: string) => void,
     onPlayerHit: (damage: number) => void,
-    createHazard: (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER') => void,
+    createHazard: (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER', element?: ElementType, critChance?: number) => void,
     isOmniForceActive: boolean, // New parameter for Ultimate
     grid?: SpatialHashGrid // Optimization
 ) => {
@@ -34,10 +34,10 @@ export const updateProjectiles = (
                  // Incinerator Bomb: Creates FIRE Hazard (Persistent)
                  // Radius increased by 25% (80 -> 100)
                  // Damage passed is now DPS (40 -> 28 per second) Reduced by 30%
-                 createHazard(proj.x, proj.y, baseRadius * 1.25, 28, 'FIRE', 'ENEMY');
+                 createHazard(proj.x, proj.y, baseRadius * 1.25, 28, 'FIRE', 'ENEMY', ElementType.FIRE);
              } else {
                  // Standard Bomb: Creates EXPLOSION Hazard (Instant)
-                 createHazard(proj.x, proj.y, baseRadius, proj.damage, 'EXPLOSION', 'ENEMY');
+                 createHazard(proj.x, proj.y, baseRadius, proj.damage, 'EXPLOSION', proj.source, proj.element, proj.critChance);
              }
          }
 
@@ -103,18 +103,17 @@ export const updateProjectiles = (
               
               // OMNI FORCE: Force Advantage if active
               if (isOmniForceActive) {
-                  multiplier = 2.0;
+                  multiplier = 3.0; // 3x Damage
               }
 
               let finalDamage = 0;
-              let isDisadvantage = false;
 
-              if (multiplier < 0.9) {
-                  // Disadvantage: Damage Reduced to 1
-                  finalDamage = 1;
-                  isDisadvantage = true;
+              // Thresholds: Advantage >= 3.0, Disadvantage <= 0.5
+              if (multiplier <= 0.5) {
+                  // Disadvantage: 0.5x Damage
+                  finalDamage = proj.damage * 0.5;
               } else {
-                  // Standard or Advantage
+                  // Standard or Advantage (3x)
                   finalDamage = proj.damage * multiplier;
               }
               
@@ -185,17 +184,16 @@ export const updateProjectiles = (
               if (hitShield && damageToHp <= 0) {
                   // Blocked by Armor entirely
                   textColor = '#cbd5e1'; // Silver
-              } else if (multiplier > 1.1) {
+              } else if (multiplier >= 3.0) {
                   // Advantage: Attacker color
                   textColor = ELEMENT_CONFIG[proj.element].color; 
-              } else if (multiplier < 0.9) {
+              } else if (multiplier <= 0.5) {
                   // Disadvantage: Gray
                   textColor = '#9ca3af';
               }
               
               let textStr = Math.round(finalDamage).toString();
-              if (isDisadvantage) textStr += "..."; // Visual for resistance
-              else if (isCrit) textStr += "!";
+              if (isCrit) textStr += "!";
               
               spawnFloatingText(e.x, e.y - 20, textStr, textColor, isCrit);
               

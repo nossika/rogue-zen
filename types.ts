@@ -29,7 +29,7 @@ export enum UltimateType {
 export enum TalentType {
   SNIPER = 'SNIPER',       // Buffs Ranged
   FIGHTER = 'FIGHTER',     // Buffs Melee
-  TANK = 'TANK',           // Defense Mult & Durability Loss Reduction
+  ARTISAN = 'ARTISAN',     // Was TANK. Defense Mult & Durability Loss Reduction
   SCIENTIST = 'SCIENTIST', // Ult Charge & Effect
   LUCKY = 'LUCKY',         // Free Reroll & Dodge
 }
@@ -42,7 +42,25 @@ export interface Talent {
   description: string;
 }
 
-export type WeaponType = 'SWORD' | 'AXE' | 'DAGGER' | 'PISTOL' | 'SPEAR' | 'SNIPER' | 'BOW';
+// Configuration Interfaces
+export interface TalentDefinition {
+  weight: number;
+  ranges: {
+    value1: [number, number]; // [Min, Max]
+    value2?: [number, number];
+    value3?: [number, number];
+  };
+  description: (v1: number, v2?: number, v3?: number) => string;
+}
+
+export interface UltimateDefinition {
+  weight: number;
+  description: string;
+  duration?: number; // Base frames
+  baseAmount?: number; // Base damage/shield amount
+}
+
+export type WeaponType = 'SWORD' | 'AXE' | 'DAGGER' | 'PISTOL' | 'SPEAR' | 'SNIPER' | 'BOW' | 'BOMB';
 export type ArmorType = 'SHIELD' | 'GLOVES' | 'BOOTS';
 
 export type EnemyType = 'STANDARD' | 'FAST' | 'TANK' | 'RANGED' | 'BOSS' | 'BOMBER' | 'INCINERATOR' | 'ZOMBIE' | 'IRON_BEETLE';
@@ -71,7 +89,9 @@ export interface Hazard {
   type: HazardType;
   tickRate: number; // How often it deals damage (0 for once)
   tickTimer: number;
-  source: 'PLAYER' | 'ENEMY'; // Who created it (to determine friendly fire if needed, currently assumes Enemy source hurts Player)
+  source: 'PLAYER' | 'ENEMY'; // Who created it
+  element: ElementType;
+  critChance?: number;
 }
 
 export interface GoldDrop {

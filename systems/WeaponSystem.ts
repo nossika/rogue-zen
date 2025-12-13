@@ -1,9 +1,10 @@
 
 import { Item, Player, Enemy, Projectile, Rarity, ElementType, TalentType, WeaponType, UltimateType, Stats } from '../types';
-import { WEAPON_BASE_CONFIG, DETAIL_COLORS, RARITY_COLORS, ELEMENT_CONFIG } from '../constants';
+import { WEAPON_BASE_CONFIG, DETAIL_COLORS, RARITY_COLORS, ELEMENT_CONFIG, ULTIMATE_CONFIG } from '../constants';
+import { getWeightedRandom } from './utils';
 
 export const generateRandomWeapon = (level: number): Item => {
-    const weaponTypes: WeaponType[] = ['SWORD', 'AXE', 'DAGGER', 'PISTOL', 'SPEAR', 'SNIPER', 'BOW'];
+    const weaponTypes: WeaponType[] = ['SWORD', 'AXE', 'DAGGER', 'PISTOL', 'SPEAR', 'SNIPER', 'BOW', 'BOMB'];
     const elements = Object.values(ElementType);
     
     // Rarity Logic
@@ -53,10 +54,10 @@ export const generateRandomWeapon = (level: number): Item => {
     const element = elements[Math.floor(Math.random() * elements.length)];
 
     // Weapon Ultimate Logic
-    const ultKeys = Object.values(UltimateType);
-    const randomUlt = rarity !== Rarity.COMMON && Math.random() > 0.6 
-    ? ultKeys[Math.floor(Math.random() * ultKeys.length)] 
-    : undefined;
+    let randomUlt: UltimateType | undefined;
+    if (rarity !== Rarity.COMMON && Math.random() > 0.6) {
+        randomUlt = getWeightedRandom(ULTIMATE_CONFIG);
+    }
 
     return {
         id: Math.random().toString(),
@@ -157,6 +158,8 @@ export const fireWeapon = (
       let projSpeed = 12;
       let projDuration = 60;
       let projRadius = 6;
+      let isBomb = false;
+      let targetX, targetY;
       
       if (isMelee) {
           projSpeed = 4;
@@ -165,6 +168,15 @@ export const fireWeapon = (
           else if (type === 'SPEAR') { projRadius = 25; projDuration = 20; projSpeed = 8; }
           else if (type === 'DAGGER') projRadius = 30;
           else projRadius = 40; // Sword
+      } else if (type === 'BOMB') {
+          projSpeed = 8;
+          projRadius = 8; // Bomb projectile radius
+          isBomb = true;
+          // Calculate exact duration to reach target
+          const dist = Math.sqrt((target.x - player.x)**2 + (target.y - player.y)**2);
+          projDuration = Math.floor(dist / projSpeed);
+          targetX = target.x;
+          targetY = target.y;
       } else {
           // Ranged
           if (type === 'SNIPER') { projSpeed = 25; projDuration = 40; projRadius = 4; }
@@ -188,7 +200,10 @@ export const fireWeapon = (
         element: element,
         critChance: totalCritChance,
         armorGain: totalArmorGain,
-        hitEnemies: new Set()
+        hitEnemies: new Set(),
+        isBomb: isBomb,
+        targetX: targetX,
+        targetY: targetY
       });
 
       cooldownRef.current = 60 / Math.max(0.1, finalSpeedMultiplier);
@@ -285,6 +300,17 @@ export const drawWeapon = (ctx: CanvasRenderingContext2D, weapon: Item | null, x
              // Arrow
              ctx.fillStyle = element !== ElementType.NONE ? elementColor : DETAIL_COLORS.steel;
              ctx.fillRect(-2, 5, 4, 25); 
+             break;
+        case 'BOMB':
+             // Draw Bomb held
+             ctx.fillStyle = '#333';
+             ctx.beginPath(); ctx.arc(0, 12, 8, 0, Math.PI * 2); ctx.fill();
+             // Fuse
+             ctx.strokeStyle = '#d4d4d8'; ctx.lineWidth = 1.5;
+             ctx.beginPath(); ctx.moveTo(0, 4); ctx.quadraticCurveTo(4, 0, 0, -2); ctx.stroke();
+             // Spark
+             ctx.fillStyle = '#facc15';
+             ctx.beginPath(); ctx.arc(0, -2, 2, 0, Math.PI * 2); ctx.fill();
              break;
         case 'SWORD':
         default:
