@@ -71,6 +71,8 @@ export const updateHazards = (
                 } else if (h.source === 'PLAYER') {
                     // Damage Enemies
                     enemies.forEach(e => {
+                        if (e.dead) return; // Skip dead enemies
+
                         const d = Math.sqrt((e.x - h.x)**2 + (e.y - h.y)**2);
                         if (d < h.radius + e.width/2) {
                             
@@ -180,6 +182,8 @@ export const updateHazards = (
             }
             
             enemies.forEach(e => {
+                 if (e.dead) return; // Skip dead enemies
+
                  const edx = e.x - h.x;
                  const edy = e.y - h.y;
                  const eDistSq = edx*edx + edy*edy;

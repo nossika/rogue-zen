@@ -82,6 +82,8 @@ export const updateProjectiles = (
          const targets = grid ? grid.query(proj.x, proj.y, proj.radius + 32) : enemies; // 32 is roughly max enemy radius
 
          for (const e of targets) {
+            if (e.dead) continue; // Skip dead enemies
+
             // Re-verify exact distance because Grid is just a broad phase
             const d = Math.sqrt((e.x - proj.x)**2 + (e.y - proj.y)**2);
             if (d < e.width + proj.radius) {

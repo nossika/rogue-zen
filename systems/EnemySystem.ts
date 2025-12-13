@@ -358,6 +358,9 @@ export const updateEnemies = (
     for(let i=0; i<currentCount; i++) {
         const e = enemies[i];
         
+        // Skip all logic for dead enemies (they are just animating)
+        if (e.dead) continue;
+
         if (isTimeStop) {
             // Even if frozen, we MUST insert into grid so projectiles can hit them
             if (grid) grid.insert(e);
@@ -397,6 +400,7 @@ export const updateEnemies = (
                 // Shuffle search or just pick first valid?
                 // Random pick is better for variety
                 const nearby = enemies.filter(ally => 
+                    !ally.dead && // Only buff living allies
                     ally.id !== e.id && 
                     ally.stats.shield <= 0 &&
                     Math.sqrt((ally.x - e.x)**2 + (ally.y - e.y)**2) < range
@@ -664,13 +668,75 @@ export const updateEnemies = (
 };
 
 export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameAssets) => {
+    // --- DEATH ANIMATION (SKULL) ---
+    if (e.dead) {
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        
+        const timer = e.deathTimer || 0;
+        const maxTime = 25;
+        const opacity = Math.max(0, timer / maxTime);
+        
+        // Float Up Effect
+        const floatY = (1 - opacity) * -20;
+        ctx.translate(0, floatY);
+        
+        ctx.globalAlpha = opacity;
+        
+        // Scale Skull based on enemy size (Base 32px)
+        const scale = Math.max(0.6, e.width / 32);
+        ctx.scale(scale, scale);
+        
+        // Draw Skull Shape
+        ctx.fillStyle = '#e2e8f0'; // Slate-200 (Bone)
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 5;
+        
+        // Cranium
+        ctx.beginPath();
+        ctx.arc(0, -5, 11, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Jaw
+        ctx.beginPath();
+        ctx.moveTo(-7, 2);
+        ctx.lineTo(7, 2);
+        ctx.lineTo(7, 10);
+        ctx.quadraticCurveTo(7, 12, 5, 12);
+        ctx.lineTo(-5, 12);
+        ctx.quadraticCurveTo(-7, 12, -7, 10);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Eyes (Hollow)
+        ctx.fillStyle = '#0f172a'; // Slate-900
+        ctx.beginPath(); ctx.ellipse(-4, -3, 3, 4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(4, -3, 3, 4, 0, 0, Math.PI*2); ctx.fill();
+        
+        // Nose
+        ctx.beginPath();
+        ctx.moveTo(0, 2);
+        ctx.lineTo(-2, 6);
+        ctx.lineTo(2, 6);
+        ctx.fill();
+        
+        // Teeth lines
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-2, 6); ctx.lineTo(-2, 12); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(2, 6); ctx.lineTo(2, 12); ctx.stroke();
+
+        ctx.restore();
+        return; // Stop drawing normal body
+    }
+
     ctx.save();
     ctx.translate(e.x, e.y);
     
     // Elemental Aura for Boss
     if (e.type === 'BOSS') {
         ctx.save();
-        ctx.globalAlpha = 0.3;
+        ctx.globalAlpha = (ctx.globalAlpha || 1) * 0.3;
         ctx.fillStyle = ELEMENT_CONFIG[e.element].color;
         ctx.beginPath();
         const pulse = Math.sin(Date.now() / 200) * 5;
@@ -839,7 +905,7 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
     ctx.stroke();
     
     // Bomber Special Detail: Fuse Spark
-    if (e.type === 'BOMBER' || e.type === 'INCINERATOR') {
+    if ((e.type === 'BOMBER' || e.type === 'INCINERATOR') && !e.dead) {
         const isIncinerator = e.type === 'INCINERATOR';
         ctx.fillStyle = isIncinerator ? '#7f1d1d' : '#111'; // Darker tank for Incinerator
         ctx.beginPath(); ctx.arc(0, 0, e.width/3, 0, Math.PI*2); ctx.fill();
@@ -912,33 +978,36 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
     ctx.save();
     ctx.translate(e.x, e.y);
     
-    const hpPct = Math.max(0, e.stats.hp / e.stats.maxHp);
-    const barWidth = e.type === 'BOSS' ? 64 : 32;
-    
-    // Background
-    ctx.fillStyle = '#333';
-    ctx.fillRect(-barWidth/2, -e.height/2 - 12, barWidth, 5);
-    
-    // HP Bar
-    ctx.fillStyle = '#ef4444';
-    ctx.fillRect(-barWidth/2, -e.height/2 - 12, barWidth * hpPct, 5);
-    
-    // Armor Bar (Shield)
-    if (e.stats.shield > 0) {
-        // Armor bar drawn on top, represented as Silver
-        // Cap visual at 100% width, but maybe indicate overlay? 
-        // Logic: Width proportional to shield relative to MaxHP, capped at barWidth
-        const shieldPct = Math.min(1.0, e.stats.shield / e.stats.maxHp);
+    // Health bar drawing (ONLY IF ALIVE - Redundant check here but good for safety if refactored)
+    if (!e.dead) {
+        const hpPct = Math.max(0, e.stats.hp / e.stats.maxHp);
+        const barWidth = e.type === 'BOSS' ? 64 : 32;
         
-        // Draw Armor bar ABOVE HP bar or overlay?
-        // Let's draw it immediately above the HP bar to show it's a separate layer
-        ctx.fillStyle = '#cbd5e1'; // Silver
-        ctx.fillRect(-barWidth/2, -e.height/2 - 19, barWidth * shieldPct, 4);
+        // Background
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-barWidth/2, -e.height/2 - 12, barWidth, 5);
         
-        // Border for armor
-        ctx.strokeStyle = '#475569';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(-barWidth/2, -e.height/2 - 19, barWidth, 4);
+        // HP Bar
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(-barWidth/2, -e.height/2 - 12, barWidth * hpPct, 5);
+        
+        // Armor Bar (Shield)
+        if (e.stats.shield > 0) {
+            // Armor bar drawn on top, represented as Silver
+            // Cap visual at 100% width, but maybe indicate overlay? 
+            // Logic: Width proportional to shield relative to MaxHP, capped at barWidth
+            const shieldPct = Math.min(1.0, e.stats.shield / e.stats.maxHp);
+            
+            // Draw Armor bar ABOVE HP bar or overlay?
+            // Let's draw it immediately above the HP bar to show it's a separate layer
+            ctx.fillStyle = '#cbd5e1'; // Silver
+            ctx.fillRect(-barWidth/2, -e.height/2 - 19, barWidth * shieldPct, 4);
+            
+            // Border for armor
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(-barWidth/2, -e.height/2 - 19, barWidth, 4);
+        }
     }
     
     ctx.restore();

@@ -23,11 +23,11 @@ export const INITIAL_PLAYER_STATS = {
   attack: 5,       // Base Strength (additive)
   attackSpeed: 0,  // Base Speed Modifier (additive)
   range: 0,        // Base Range Modifier (additive)
-  moveSpeed: 2.72, // Reduced by 15% from 3.2
+  moveSpeed: 2.4, // Reduced by 15% from 3.2
   blockChance: 0.1,
   dodgeChance: 0,  // Base Dodge Chance
-  knockback: 0,    // Base Knockback Modifier (additive)
-  critChance: 0.01, // 1% Base Crit
+  knockback: 1,    // Base Knockback Modifier (additive)
+  critChance: 0.02, // 1% Base Crit
   armorOnHit: 0,   // Base Armor/Shield Gain on hit
   ultChargeRate: 0.2, // Base passive charge rate
 };

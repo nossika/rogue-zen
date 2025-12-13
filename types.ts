@@ -185,7 +185,10 @@ export interface Enemy extends Entity {
   // Boss Specifics
   bossAbilities?: BossAbility[];
   totalDamageTaken?: number;
-  abilityTimers?: Record<string, number>; 
+  abilityTimers?: Record<string, number>;
+  
+  // Visual state
+  deathTimer?: number;
 }
 
 export interface Projectile {

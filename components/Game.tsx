@@ -430,37 +430,50 @@ const Game: React.FC<GameProps> = ({
     );
 
     for (let i = enemiesRef.current.length - 1; i >= 0; i--) {
-       if (enemiesRef.current[i].stats.hp <= 0) {
-         const enemy = enemiesRef.current[i];
-         enemiesRef.current.splice(i, 1);
-         
-         // GOLD REWARD LOGIC
-         let goldReward = 0;
-         if (enemy.type === 'BOSS') {
-             // Check if any other bosses exist (Handling Split/Clone logic)
-             const remainingBosses = enemiesRef.current.filter(e => e.type === 'BOSS' && !e.dead).length;
-             
-             if (remainingBosses === 0) {
-                 goldReward = GOLD_VALUES.BOSS_KILL;
-                 stageInfoRef.current.stageCleared = true;
-                 onStageClearWrapper();
-                 if (p.gold) p.gold += goldReward; else p.gold = goldReward;
-             } else {
-                 // Boss killed but clone remains, give partial reward or none?
-                 // Let's give small reward for the kill itself
-                 goldReward = GOLD_VALUES.BOSS_KILL / 2;
-                 if (p.gold) p.gold += goldReward; else p.gold = goldReward;
-             }
-         } else if (enemy.isMinion) {
-             goldReward = GOLD_VALUES.MINION_KILL;
-         } else {
-             goldReward = GOLD_VALUES.ENEMY_KILL;
-             stageInfoRef.current.killedCount++;
-         }
+       const enemy = enemiesRef.current[i];
+       
+       if (enemy.stats.hp <= 0) {
+           if (!enemy.dead) {
+               // Start Death Animation
+               enemy.dead = true;
+               enemy.deathTimer = 25; // 25 frames animation
+               
+               // GOLD REWARD LOGIC (Trigger immediately on kill)
+               let goldReward = 0;
+               if (enemy.type === 'BOSS') {
+                   // Check if any other bosses exist (Handling Split/Clone logic)
+                   // Exclude current enemy as it is now marked dead
+                   const remainingBosses = enemiesRef.current.filter(e => e.type === 'BOSS' && !e.dead && e.id !== enemy.id).length;
+                   
+                   if (remainingBosses === 0) {
+                       goldReward = GOLD_VALUES.BOSS_KILL;
+                       stageInfoRef.current.stageCleared = true;
+                       onStageClearWrapper();
+                       if (p.gold) p.gold += goldReward; else p.gold = goldReward;
+                   } else {
+                       // Boss killed but clone remains, give partial reward or none?
+                       goldReward = GOLD_VALUES.BOSS_KILL / 2;
+                       if (p.gold) p.gold += goldReward; else p.gold = goldReward;
+                   }
+               } else if (enemy.isMinion) {
+                   goldReward = GOLD_VALUES.MINION_KILL;
+               } else {
+                   goldReward = GOLD_VALUES.ENEMY_KILL;
+                   stageInfoRef.current.killedCount++;
+               }
 
-         if (goldReward > 0 && enemy.type !== 'BOSS') {
-             p.gold += goldReward;
-         }
+               if (goldReward > 0 && enemy.type !== 'BOSS') {
+                   p.gold += goldReward;
+               }
+           }
+       }
+       
+       // Handle Death Animation
+       if (enemy.dead) {
+           enemy.deathTimer = (enemy.deathTimer || 0) - 1;
+           if (enemy.deathTimer <= 0) {
+               enemiesRef.current.splice(i, 1);
+           }
        }
     }
 
