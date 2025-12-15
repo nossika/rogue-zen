@@ -1,50 +1,43 @@
 
 import { Item, ArmorType, Rarity, TalentType, Talent, Stats, ElementType } from '../../types';
-import { TALENT_CONFIG } from '../../constants';
+import { TALENT_CONFIG, RARITY_CONFIG, ARMOR_BASE_CONFIG } from '../../constants';
 import { getWeightedRandom } from '../utils';
 
 export const generateRandomArmor = (level: number): Item => {
     const armorTypes: ArmorType[] = ['SHIELD', 'GLOVES', 'BOOTS'];
     
-    const rarityRoll = Math.random();
-    let rarity = Rarity.COMMON;
-    if (rarityRoll > 0.9) rarity = Rarity.LEGENDARY;
-    else if (rarityRoll > 0.7) rarity = Rarity.EPIC;
-    else if (rarityRoll > 0.4) rarity = Rarity.RARE;
+    // Use weighted random from config
+    const rarity = getWeightedRandom(RARITY_CONFIG) as Rarity;
+    const configDef = RARITY_CONFIG[rarity];
 
-    const rarityMult = { [Rarity.COMMON]: 1.0, [Rarity.RARE]: 1.25, [Rarity.EPIC]: 1.5, [Rarity.LEGENDARY]: 2.0 };
-    const rm = rarityMult[rarity];
-    const rf = rarity === Rarity.COMMON ? 0 : rarity === Rarity.RARE ? 0.33 : rarity === Rarity.EPIC ? 0.66 : 1;
+    const rm = configDef.statMult;
+    const rf = configDef.talentStrength;
 
     const subtype = armorTypes[Math.floor(Math.random() * armorTypes.length)];
-    let stats: Partial<Stats> = {};
-    let name = "Item";
-
-    if (subtype === 'SHIELD') {
-        name = `${rarity} Shield`;
-        stats = {
-            defense: Math.floor((2 + level * 1.5) * rm),
-            shield: Math.floor(20 * rm * (1 + level * 0.1))
-        };
-    } else if (subtype === 'GLOVES') {
-        name = `${rarity} Gloves`;
-        stats = {
-            range: Math.floor(30 * rm),
-            attackSpeed: Number((0.1 * rm).toFixed(2))
-        };
-    } else if (subtype === 'BOOTS') {
-        name = `${rarity} Boots`;
-        stats = {
-            moveSpeed: Number((0.5 * rm).toFixed(1)),
-            ultChargeRate: Number((0.2 * rm).toFixed(2)) 
-        };
+    const armorConfig = ARMOR_BASE_CONFIG[subtype];
+    const name = `${rarity} ${armorConfig.name}`;
+    
+    const stats: Partial<Stats> = {};
+    
+    // Apply base stats and per-level scaling
+    for (const key of Object.keys(armorConfig.baseStats) as Array<keyof Stats>) {
+        const base = armorConfig.baseStats[key] || 0;
+        const perLevel = armorConfig.perLevelStats?.[key] || 0;
+        const total = (base + (perLevel * level)) * rm;
+        
+        // Float precision handling
+        if (key === 'attackSpeed' || key === 'moveSpeed' || key === 'ultChargeRate') {
+            stats[key] = Number(total.toFixed(2));
+        } else {
+            stats[key] = Math.floor(total);
+        }
     }
 
-    const talentChance = rarity === Rarity.COMMON ? 0.2 : rarity === Rarity.RARE ? 0.5 : rarity === Rarity.EPIC ? 0.8 : 1.0;
+    const talentChance = configDef.talentChance;
     let armorTalent: Talent | undefined;
 
     if (Math.random() <= talentChance) {
-        const tType = getWeightedRandom(TALENT_CONFIG);
+        const tType = getWeightedRandom(TALENT_CONFIG) as TalentType;
         const config = TALENT_CONFIG[tType];
         
         const lerp = (range: [number, number], isInt = false) => {

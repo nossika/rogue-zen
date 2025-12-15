@@ -47,26 +47,3 @@ export const updateLoot = (
         }
     }
 };
-
-export const drawLoot = (ctx: CanvasRenderingContext2D, goldDrops: GoldDrop[]) => {
-    goldDrops.forEach(g => {
-        ctx.save();
-        ctx.translate(g.x, g.y);
-        const bob = Math.sin(Date.now() / 200) * 3;
-        ctx.translate(0, bob);
-        
-        ctx.shadowColor = '#fbbf24';
-        ctx.shadowBlur = 10;
-        
-        ctx.fillStyle = '#f59e0b'; 
-        ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#fbbf24'; 
-        ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
-        
-        ctx.fillStyle = '#fff';
-        ctx.globalAlpha = 0.8;
-        ctx.beginPath(); ctx.arc(-2, -2, 2, 0, Math.PI*2); ctx.fill();
-        
-        ctx.restore();
-    });
-};

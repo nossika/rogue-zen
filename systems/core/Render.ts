@@ -1,12 +1,9 @@
 
-import { Player, Enemy, Projectile, Terrain, Hazard, GoldDrop, FloatingText, GameAssets, SpatialHashGrid, Particle } from '../../types';
+import { Player, Enemy, Projectile, Terrain, Hazard, GoldDrop, FloatingText, GameAssets, Particle } from '../../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, COLOR_PALETTE } from '../../constants';
-import * as TerrainSystem from '../world/Terrain';
-import * as HazardSystem from '../combat/Hazard';
-import * as LootSystem from '../items/Loot';
-import * as PlayerSystem from '../entities/Player';
-import * as EnemySystem from '../entities/Enemy';
-import * as ProjectileSystem from '../combat/Projectile';
+import * as WorldRender from '../ui/WorldRender';
+import * as EntityRender from '../ui/EntityRender';
+import * as CombatRender from '../ui/CombatRender';
 import * as ParticleSystem from '../ui/Particle';
 
 interface DrawContext {
@@ -70,9 +67,9 @@ export const drawGame = ({
     ctx.strokeRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 
     // Draw Systems
-    TerrainSystem.drawTerrain(ctx, terrain);
-    HazardSystem.drawHazards(ctx, hazards, terrain);
-    LootSystem.drawLoot(ctx, goldDrops);
+    WorldRender.drawTerrain(ctx, terrain);
+    WorldRender.drawHazards(ctx, hazards, terrain);
+    WorldRender.drawLoot(ctx, goldDrops);
 
     // Buff Visuals
     if (omniForceActive) {
@@ -96,9 +93,9 @@ export const drawGame = ({
     }
 
     // Entities
-    PlayerSystem.drawPlayer(ctx, player, assets, hurtTimer, invincibilityTimer);
-    enemies.forEach(e => EnemySystem.drawEnemy(ctx, e, assets));
-    projectiles.forEach(proj => ProjectileSystem.drawProjectile(ctx, proj));
+    EntityRender.drawPlayer(ctx, player, assets, hurtTimer, invincibilityTimer);
+    enemies.forEach(e => EntityRender.drawEnemy(ctx, e, assets));
+    projectiles.forEach(proj => CombatRender.drawProjectile(ctx, proj));
     
     // Visual Effects
     ParticleSystem.drawParticles(ctx, particles);

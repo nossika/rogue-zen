@@ -2,7 +2,6 @@
 import { Player, GameAssets, Terrain, TerrainType, FloatingText } from '../../types';
 import { MAP_WIDTH, MAP_HEIGHT, DETAIL_COLORS } from '../../constants';
 import { checkRectOverlap } from '../utils';
-import { drawWeapon } from '../combat/Weapon';
 import * as FloatingTextSystem from '../ui/FloatingText';
 
 export const updatePlayerMovement = (
@@ -131,83 +130,4 @@ export const handlePlayerDamage = (
     } else {
         if (!silent) FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, "BLOCKED", '#94a3b8');
     }
-};
-
-export const drawPlayer = (
-    ctx: CanvasRenderingContext2D, 
-    player: Player, 
-    assets: GameAssets, 
-    hurtTimer: number, 
-    invincibilityTimer: number
-) => {
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    
-    // I-Frames Visual
-    if (hurtTimer > 0 || invincibilityTimer > 0) {
-       ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 20) * 0.4;
-    }
-
-    // Ultimate Effect Halo
-    if (invincibilityTimer > 30) { // Distinction between Ult Invincibility vs I-frame
-      ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); 
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; ctx.fill();
-      ctx.strokeStyle = 'gold'; ctx.lineWidth = 2; ctx.stroke();
-    }
-
-    ctx.rotate(player.angle + Math.PI/2); // Sprite face up
-
-    const img = document.getElementById('player-asset-img') as HTMLImageElement;
-    
-    if (assets.playerSprite && img && img.complete) {
-        // Draw Sprite Body
-        ctx.drawImage(img, -24, -24, 48, 48);
-    } else {
-        // Draw Procedural Body
-        ctx.rotate(-Math.PI/2); // Reset to face right for procedural
-        ctx.rotate(player.angle); // Rotate to angle
-        
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.beginPath(); ctx.ellipse(0, 0, 18, 12, 0, 0, Math.PI*2); ctx.fill();
-
-        ctx.fillStyle = '#1e293b'; 
-        ctx.fillRect(-10, -10, 20, 20);
-        ctx.fillStyle = player.color; 
-        ctx.beginPath();
-        ctx.roundRect(-8, -8, 16, 16, 4);
-        ctx.fill();
-
-        ctx.fillStyle = DETAIL_COLORS.skin;
-        ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI*2); ctx.fill();
-        
-        ctx.fillStyle = player.color;
-        ctx.beginPath(); ctx.arc(0, 0, 9, Math.PI/2, -Math.PI/2); ctx.fill(); 
-        
-        ctx.rotate(-player.angle); // Reset
-        ctx.rotate(player.angle + Math.PI/2); // Back to up facing for hands
-    }
-
-    // Draw Hands and Weapons ON TOP of Sprite
-    // Hands relative to facing UP (since we rotated PI/2)
-    const handOffsetX = 14; 
-    
-    // Right Hand (Weapon 1)
-    ctx.save();
-    ctx.translate(handOffsetX, 0);
-    ctx.fillStyle = DETAIL_COLORS.skin;
-    ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill(); 
-    ctx.rotate(-Math.PI/2); 
-    drawWeapon(ctx, player.equipment.weapon1, 0, 0);
-    ctx.restore();
-
-    // Left Hand (Weapon 2)
-    ctx.save();
-    ctx.translate(-handOffsetX, 0);
-    ctx.fillStyle = DETAIL_COLORS.skin;
-    ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill(); 
-    ctx.rotate(-Math.PI/2);
-    drawWeapon(ctx, player.equipment.weapon2, 0, 0);
-    ctx.restore();
-
-    ctx.restore();
 };

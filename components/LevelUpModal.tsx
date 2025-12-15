@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Item, Player, Stats, TalentType, UpgradeReward, StatUpgrade, ElementType } from '../types';
-import { RARITY_COLORS, ELEMENT_CONFIG, REROLL_COST, ULTIMATE_DESCRIPTIONS } from '../constants';
+import { RARITY_CONFIG, ELEMENT_CONFIG, REROLL_COST, ULTIMATE_CONFIG } from '../constants';
 import { ArrowRight, Star, Heart, Zap, RefreshCw, X, Coins, RotateCcw, Activity, Skull } from 'lucide-react';
 import { generateRandomWeapon } from '@/systems/items/Weapon';
 import { generateRandomArmor } from '@/systems/items/Armor';
@@ -207,7 +207,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
            {newItem.ultimate && (
                <div className="pt-2 mt-2 border-t border-gray-600">
                    <span className="text-[10px] uppercase font-bold text-yellow-300 block mb-1">New Ultimate: {newItem.ultimateName}</span>
-                   <p className="text-[10px] text-gray-300 leading-tight">{ULTIMATE_DESCRIPTIONS[newItem.ultimate]}</p>
+                   <p className="text-[10px] text-gray-300 leading-tight">{ULTIMATE_CONFIG[newItem.ultimate].description}</p>
                </div>
            )}
 
@@ -376,17 +376,19 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                     typeColor = "bg-indigo-600";
                 }
             }
+            
+            const rarityColor = isItem ? RARITY_CONFIG[item!.rarity].color : '#fff';
 
             return (
               <button
                 key={idx}
                 onClick={() => handleInitialSelect(reward)}
                 className={`relative group flex flex-col h-full bg-gray-800 rounded-xl overflow-hidden border-2 transition-all hover:scale-105 hover:shadow-2xl min-h-[160px]
-                  ${isItem ? 'border-' + RARITY_COLORS[item!.rarity].replace('#', '') : 
+                  ${isItem ? 'border-' + rarityColor.replace('#', '') : 
                     isHeal ? 'border-green-500 hover:border-green-400' : 'border-gray-600 hover:border-white'}`}
                 style={{ 
-                    borderColor: isItem ? RARITY_COLORS[item!.rarity] : (isHeal ? '#22c55e' : undefined),
-                    boxShadow: isItem ? `0 0 20px ${RARITY_COLORS[item!.rarity]}20` : undefined
+                    borderColor: isItem ? rarityColor : (isHeal ? '#22c55e' : undefined),
+                    boxShadow: isItem ? `0 0 20px ${rarityColor}20` : undefined
                 }}
               >
                 <div className={`absolute top-0 left-0 ${typeColor} text-white text-[10px] font-bold px-2 py-1 rounded-br-lg z-20 shadow-md`}>
@@ -395,7 +397,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
 
                 <div className={`h-24 md:h-32 w-full flex items-center justify-center relative overflow-hidden
                     ${isItem ? '' : isHeal ? 'bg-green-900/50' : 'bg-gradient-to-br from-gray-700 to-gray-800'}`}
-                    style={{ background: isItem ? `radial-gradient(circle at center, ${RARITY_COLORS[item!.rarity]}55, #1f2937)` : undefined }}
+                    style={{ background: isItem ? `radial-gradient(circle at center, ${rarityColor}55, #1f2937)` : undefined }}
                 >
                    {isItem ? <ItemIcon item={item} size={48} className="text-white drop-shadow-md" /> : isHeal ? (
                        <Heart size={48} className="text-red-500 drop-shadow-lg animate-pulse" fill="currentColor" />
@@ -436,7 +438,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                    </h3>
                    
                    {isItem && (
-                       <div className="text-xs font-mono uppercase tracking-wider mb-3" style={{ color: RARITY_COLORS[item!.rarity] }}>
+                       <div className="text-xs font-mono uppercase tracking-wider mb-3" style={{ color: rarityColor }}>
                            {item!.rarity} {item!.subtype || 'SHIELD'}
                        </div>
                    )}

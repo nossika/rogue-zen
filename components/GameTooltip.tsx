@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Item, UltimateType, Stats } from '../types';
-import { RARITY_COLORS, ELEMENT_CONFIG, ULTIMATE_DESCRIPTIONS } from '../constants';
+import { RARITY_CONFIG, ELEMENT_CONFIG, ULTIMATE_CONFIG } from '../constants';
 import { UltimateIcon } from './Ultimate';
 
 interface TooltipData {
@@ -39,7 +39,7 @@ export const GameTooltip: React.FC<GameTooltipProps> = ({ tooltip, onClose }) =>
                       <>
                           <div className="flex justify-between items-start border-b border-gray-700 pb-2 mb-2">
                               <div>
-                                  <div className="font-bold text-sm" style={{ color: RARITY_COLORS[item.rarity] }}>{item.name}</div>
+                                  <div className="font-bold text-sm" style={{ color: RARITY_CONFIG[item.rarity].color }}>{item.name}</div>
                                   <div className="text-gray-400 text-[10px] uppercase">{item.rarity} {item.subtype || 'SHIELD'} - LVL {item.level}</div>
                               </div>
                               {item.element && item.element !== 'NONE' && (
@@ -74,7 +74,7 @@ export const GameTooltip: React.FC<GameTooltipProps> = ({ tooltip, onClose }) =>
                           {item.ultimate && (
                               <div className="bg-gray-800 p-2 rounded text-[10px] border border-gray-700">
                                   <span className="text-yellow-400 font-bold block mb-1">ULTIMATE: {item.ultimateName}</span>
-                                  <span className="text-gray-300">{ULTIMATE_DESCRIPTIONS[item.ultimate]}</span>
+                                  <span className="text-gray-300">{ULTIMATE_CONFIG[item.ultimate].description}</span>
                               </div>
                           )}
                           {item.enchantment && (
@@ -126,7 +126,7 @@ export const GameTooltip: React.FC<GameTooltipProps> = ({ tooltip, onClose }) =>
                               <div className="mt-0.5"><UltimateIcon type={ult} /></div>
                               <div>
                                   <div className="font-bold text-white">{ult.replace(/_/g, ' ')}</div>
-                                  <div className="text-gray-400">{ULTIMATE_DESCRIPTIONS[ult]}</div>
+                                  <div className="text-gray-400">{ULTIMATE_CONFIG[ult].description}</div>
                               </div>
                           </div>
                       ))}

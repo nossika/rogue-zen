@@ -35,6 +35,7 @@ export enum TalentType {
 }
 
 export type DebuffType = 'SLOW' | 'STUN' | 'BLEED';
+export type WeaponCategory = 'MELEE' | 'RANGED' | 'THROWN';
 
 export interface WeaponEnchantment {
   type: DebuffType;
@@ -67,6 +68,15 @@ export interface UltimateDefinition {
   description: string;
   duration?: number; // Base frames
   baseAmount?: number; // Base damage/shield amount
+}
+
+export interface RarityConfigDefinition {
+    color: string;
+    statMult: number;
+    weight: number;
+    talentChance: number;
+    talentStrength: number; // 0 to 1 interpolation factor
+    meleeArmorTarget: number; // For melee weapon armor calculation
 }
 
 export type WeaponType = 'SWORD' | 'AXE' | 'DAGGER' | 'PISTOL' | 'SPEAR' | 'SNIPER' | 'BOW' | 'BOMB';

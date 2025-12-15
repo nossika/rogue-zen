@@ -29,15 +29,15 @@ export const spawnEnemy = (
     } else {
         // Filter valid enemies for this stage and calculate total weight
         const validTypes = Object.entries(ENEMY_TYPES_CONFIG).filter(([key, config]) => 
-            key !== 'BOSS' && currentStage >= config.minStage
+            key !== 'BOSS' && currentStage >= (config as any).minStage
         );
 
-        const totalWeight = validTypes.reduce((sum, [_, config]) => sum + config.spawnWeight, 0);
+        const totalWeight = validTypes.reduce((sum, [_, config]) => sum + (config as any).spawnWeight, 0);
         let randomWeight = Math.random() * totalWeight;
 
         // Weighted selection
         for (const [key, config] of validTypes) {
-            randomWeight -= config.spawnWeight;
+            randomWeight -= (config as any).spawnWeight;
             if (randomWeight <= 0) {
                 type = key as EnemyType;
                 break;
@@ -158,7 +158,7 @@ export const spawnEnemy = (
         shield: initialArmor, // Shield acts as Armor
         attack: 10 * tierMultiplier * config.attackMult,
         defense: 0,
-        moveSpeed: (2 + Math.random() * 1.5) * config.speedMult,
+        moveSpeed: (1.5 + Math.random() * 1) * config.speedMult,
         attackSpeed: 1,
         range: type === 'BOSS' ? 400 : 30,
         blockChance: type === 'BOSS' ? 0.3 : 0,
@@ -236,7 +236,7 @@ export const spawnMinion = (enemies: Enemy[], boss: Enemy, terrain: Terrain[]) =
         shield: 0,
         attack: boss.stats.attack * 0.4,
         defense: 0,
-        moveSpeed: (2 + Math.random() * 1.5) * config.speedMult,
+        moveSpeed: (1.5 + Math.random() * 1) * config.speedMult,
         attackSpeed: 1,
         range: 30,
         blockChance: 0,
@@ -645,326 +645,4 @@ export const updateEnemies = (
            applyDebuff(e, 'STUN', 60);
         }
     }
-};
-
-export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameAssets) => {
-    if (e.dead) {
-        ctx.save();
-        ctx.translate(e.x, e.y);
-        
-        const timer = e.deathTimer || 0;
-        const maxTime = 25;
-        const opacity = Math.max(0, timer / maxTime);
-        
-        const floatY = (1 - opacity) * -20;
-        ctx.translate(0, floatY);
-        
-        ctx.globalAlpha = opacity;
-        
-        const scale = Math.max(0.6, e.width / 32);
-        ctx.scale(scale, scale);
-        
-        ctx.fillStyle = '#e2e8f0'; 
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 5;
-        
-        ctx.beginPath();
-        ctx.arc(0, -5, 11, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.beginPath();
-        ctx.moveTo(-7, 2);
-        ctx.lineTo(7, 2);
-        ctx.lineTo(7, 10);
-        ctx.quadraticCurveTo(7, 12, 5, 12);
-        ctx.lineTo(-5, 12);
-        ctx.quadraticCurveTo(-7, 12, -7, 10);
-        ctx.closePath();
-        ctx.fill();
-        
-        ctx.fillStyle = '#0f172a'; 
-        ctx.beginPath(); ctx.ellipse(-4, -3, 3, 4, 0, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(4, -3, 3, 4, 0, 0, Math.PI*2); ctx.fill();
-        
-        ctx.beginPath();
-        ctx.moveTo(0, 2);
-        ctx.lineTo(-2, 6);
-        ctx.lineTo(2, 6);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(-2, 6); ctx.lineTo(-2, 12); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(2, 6); ctx.lineTo(2, 12); ctx.stroke();
-
-        ctx.restore();
-        return; 
-    }
-
-    ctx.save();
-    ctx.translate(e.x, e.y);
-    
-    if (e.type === 'BOSS') {
-        ctx.save();
-        ctx.globalAlpha = (ctx.globalAlpha || 1) * 0.3;
-        ctx.fillStyle = ELEMENT_CONFIG[e.element].color;
-        ctx.beginPath();
-        const pulse = Math.sin(Date.now() / 200) * 5;
-        ctx.arc(0, 0, (e.width/1.5) + pulse, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-    }
-
-    if (e.type === 'BOSS' && e.abilityTimers) {
-        if (e.abilityTimers['INVINCIBLE_ARMOR'] > 0) {
-            ctx.save();
-            ctx.strokeStyle = '#fbbf24'; // Gold
-            ctx.lineWidth = 3;
-            ctx.globalAlpha = 0.7 + Math.sin(Date.now()/50)*0.3;
-            ctx.beginPath(); ctx.arc(0, 0, e.width/1.2, 0, Math.PI*2); ctx.stroke();
-            ctx.restore();
-        } 
-        if (e.abilityTimers['BERSERKER'] > 0) {
-            ctx.save();
-            ctx.fillStyle = '#ef4444'; 
-            ctx.globalAlpha = 0.4;
-            ctx.beginPath(); ctx.arc(0, 0, e.width/1.2, 0, Math.PI*2); ctx.fill();
-            ctx.restore();
-        }
-    }
-
-    if (e.type === 'BOSS') {
-        ctx.save();
-        ctx.translate(0, -e.height/2 - 10);
-        ctx.fillStyle = '#fbbf24'; // Gold
-        ctx.beginPath();
-        ctx.moveTo(-10, 0);
-        ctx.lineTo(-15, -10);
-        ctx.lineTo(-5, -5);
-        ctx.lineTo(0, -15);
-        ctx.lineTo(5, -5);
-        ctx.lineTo(15, -10);
-        ctx.lineTo(10, 0);
-        ctx.fill();
-        ctx.restore();
-    }
-
-    const baseColor = ELEMENT_CONFIG[e.element].color;
-    
-    ctx.rotate(e.angle);
-
-    ctx.fillStyle = baseColor;
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-
-    switch(e.type) {
-        case 'FAST':
-            ctx.moveTo(e.width/2, 0);
-            ctx.lineTo(-e.width/2, e.height/2);
-            ctx.lineTo(-e.width/3, 0); 
-            ctx.lineTo(-e.width/2, -e.height/2);
-            break;
-            
-        case 'TANK':
-            const w = e.width/2;
-            ctx.moveTo(w, w/2);
-            ctx.lineTo(w/2, w);
-            ctx.lineTo(-w/2, w);
-            ctx.lineTo(-w, w/2);
-            ctx.lineTo(-w, -w/2);
-            ctx.lineTo(-w/2, -w);
-            ctx.lineTo(w/2, -w);
-            ctx.lineTo(w, -w/2);
-            break;
-
-        case 'RANGED':
-            ctx.moveTo(e.width/1.5, 0);
-            ctx.lineTo(0, e.height/3);
-            ctx.lineTo(-e.width/1.5, 0);
-            ctx.lineTo(0, -e.height/3);
-            ctx.moveTo(0, e.height/3);
-            ctx.lineTo(0, e.height/1.5);
-            ctx.moveTo(0, -e.height/3);
-            ctx.lineTo(0, -e.height/1.5);
-            break;
-        
-        case 'BOMBER':
-        case 'INCINERATOR':
-             ctx.arc(0, 0, e.width/2, 0, Math.PI * 2);
-             ctx.moveTo(e.width/3, -e.height/3);
-             ctx.lineTo(e.width/2, -e.height/2);
-             break;
-
-        case 'ZOMBIE':
-             const zRad = e.width/2;
-             const jags = 7;
-             for(let i=0; i<jags*2; i++) {
-                 const angle = (i / (jags*2)) * Math.PI * 2;
-                 const offset = (i % 2 === 0) ? 0 : -5;
-                 const r = zRad + offset;
-                 if(i===0) ctx.moveTo(Math.cos(angle)*r, Math.sin(angle)*r);
-                 else ctx.lineTo(Math.cos(angle)*r, Math.sin(angle)*r);
-             }
-             break;
-
-        case 'IRON_BEETLE':
-             ctx.scale(1, 0.8); 
-             ctx.arc(0, 0, e.width/2, 0, Math.PI * 2);
-             ctx.fill();
-             ctx.stroke();
-             
-             ctx.beginPath();
-             ctx.moveTo(-e.width/2, 0);
-             ctx.lineTo(e.width/2, 0);
-             ctx.stroke();
-             
-             ctx.beginPath();
-             ctx.arc(e.width/2, 0, e.width/4, -Math.PI/2, Math.PI/2);
-             ctx.fillStyle = '#64748b'; 
-             ctx.fill();
-             ctx.stroke();
-             ctx.scale(1, 1.25); 
-             break;
-
-        case 'BOSS':
-            const spikes = 12;
-            const rOuter = e.width/2;
-            const rInner = e.width/3;
-            for(let i=0; i<spikes*2; i++) {
-                const r = (i%2===0) ? rOuter : rInner;
-                const a = (i / (spikes*2)) * Math.PI * 2;
-                if (i===0) ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r);
-                else ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
-            }
-            break;
-
-        case 'STANDARD':
-        default:
-            const s = 8;
-            for(let i=0; i<s*2; i++) {
-                const r = (i%2===0) ? e.width/2 : e.width/2 - 4;
-                const a = (i / (s*2)) * Math.PI * 2;
-                if (i===0) ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r);
-                else ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
-            }
-            break;
-    }
-    
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    
-    if ((e.type === 'BOMBER' || e.type === 'INCINERATOR') && !e.dead) {
-        const isIncinerator = e.type === 'INCINERATOR';
-        ctx.fillStyle = isIncinerator ? '#7f1d1d' : '#111'; 
-        ctx.beginPath(); ctx.arc(0, 0, e.width/3, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(e.width/2, -e.height/2);
-        ctx.quadraticCurveTo(e.width/2 + 5, -e.height/2 - 10, e.width/2 + 10, -e.height/2 - 5);
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
-        if (Math.floor(Date.now() / 100) % 2 === 0) {
-            ctx.fillStyle = '#fbbf24';
-            ctx.beginPath(); ctx.arc(e.width/2 + 10, -e.height/2 - 5, 3, 0, Math.PI*2); ctx.fill();
-        }
-    }
-
-    if (e.type !== 'BOMBER' && e.type !== 'INCINERATOR') {
-        const grad = ctx.createRadialGradient(0,0, e.width/5, 0,0, e.width/2);
-        grad.addColorStop(0, 'rgba(255,255,255,0.6)');
-        grad.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = grad;
-        ctx.fill();
-    }
-
-    ctx.fillStyle = DETAIL_COLORS.enemyEye;
-    ctx.shadowColor = DETAIL_COLORS.enemyEye;
-    ctx.shadowBlur = 10;
-    
-    if (e.type === 'BOSS') {
-         ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
-         ctx.beginPath(); ctx.arc(-12, -8, 5, 0, Math.PI*2); ctx.fill();
-         ctx.beginPath(); ctx.arc(12, -8, 5, 0, Math.PI*2); ctx.fill();
-         ctx.beginPath(); ctx.arc(0, 10, 4, 0, Math.PI*2); ctx.fill();
-    } else if (e.type === 'FAST') {
-         ctx.beginPath();
-         ctx.ellipse(4, 0, 4, 8, 0, 0, Math.PI*2);
-         ctx.fill();
-    } else if (e.type === 'BOMBER' || e.type === 'INCINERATOR') {
-         const isIncinerator = e.type === 'INCINERATOR';
-         ctx.fillStyle = '#333';
-         ctx.beginPath(); ctx.arc(-6, -4, 6, 0, Math.PI*2); ctx.fill();
-         ctx.beginPath(); ctx.arc(6, -4, 6, 0, Math.PI*2); ctx.fill();
-         ctx.fillStyle = isIncinerator ? '#fca5a5' : '#4ade80'; 
-         ctx.beginPath(); ctx.arc(-6, -4, 4, 0, Math.PI*2); ctx.fill();
-         ctx.beginPath(); ctx.arc(6, -4, 4, 0, Math.PI*2); ctx.fill();
-    } else if (e.type === 'ZOMBIE') {
-        ctx.beginPath(); ctx.arc(-6, -4, 5, 0, Math.PI*2); ctx.fill(); 
-        ctx.beginPath(); ctx.arc(6, -2, 2, 0, Math.PI*2); ctx.fill();  
-        ctx.fillStyle = '#a3e635';
-        ctx.beginPath(); ctx.arc(8, 8, 3, 0, Math.PI*2); ctx.fill();
-    } else if (e.type === 'IRON_BEETLE') {
-        ctx.beginPath(); ctx.arc(10, -5, 2, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(10, 5, 2, 0, Math.PI*2); ctx.fill();
-    } else {
-        ctx.beginPath(); ctx.ellipse(6, -4, 4, 2, 0, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(6, 4, 4, 2, 0, 0, Math.PI*2); ctx.fill();
-    }
-    
-    ctx.shadowBlur = 0;
-    
-    ctx.restore();
-    ctx.save();
-    ctx.translate(e.x, e.y);
-    
-    if (!e.dead) {
-        const barY = -e.height/2 - 12;
-        
-        if (e.debuffs.STUN > 0) {
-            ctx.save();
-            const wobble = Math.sin(Date.now() / 200) * 5;
-            ctx.translate(0, -e.height/2 - 25 + wobble);
-            ctx.fillStyle = '#facc15';
-            ctx.font = 'bold 12px monospace';
-            ctx.fillText("ZZZ", -10, 0);
-            ctx.restore();
-        }
-
-        if (e.debuffs.SLOW > 0) {
-            ctx.fillStyle = '#60a5fa'; 
-            ctx.beginPath(); ctx.arc(-e.width/2 - 10, 0, 4, 0, Math.PI*2); ctx.fill();
-        }
-
-        if (e.debuffs.BLEED > 0) {
-            ctx.fillStyle = '#ef4444'; 
-            ctx.beginPath(); 
-            ctx.moveTo(e.width/2 + 10, 0);
-            ctx.lineTo(e.width/2 + 10, 4);
-            ctx.arc(e.width/2 + 10, 4, 3, 0, Math.PI);
-            ctx.fill();
-        }
-
-        const hpPct = Math.max(0, e.stats.hp / e.stats.maxHp);
-        const barWidth = e.type === 'BOSS' ? 64 : 32;
-        
-        ctx.fillStyle = '#333';
-        ctx.fillRect(-barWidth/2, barY, barWidth, 5);
-        
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(-barWidth/2, barY, barWidth * hpPct, 5);
-        
-        if (e.stats.shield > 0) {
-            const shieldPct = Math.min(1.0, e.stats.shield / e.stats.maxHp);
-            
-            ctx.fillStyle = '#cbd5e1'; 
-            ctx.fillRect(-barWidth/2, barY - 7, barWidth * shieldPct, 4);
-            
-            ctx.strokeStyle = '#475569';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(-barWidth/2, barY - 7, barWidth, 4);
-        }
-    }
-    
-    ctx.restore();
 };

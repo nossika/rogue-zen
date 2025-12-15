@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { Item, UltimateType, Stats } from '../types';
 import { Coins, User, Sword, Shield, Wrench } from 'lucide-react';
 import { ItemIcon } from './ItemIcon';
 import { UltimateIcon } from './Ultimate';
-import { RARITY_COLORS, ELEMENT_CONFIG } from '../constants';
+import { RARITY_CONFIG, ELEMENT_CONFIG } from '../constants';
 
 interface GameHUDProps {
     uiState: {
@@ -59,8 +60,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               onClick={(e) => onClickItem(item, e)}
            >
                <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-gray-800 border-2 rounded flex items-center justify-center relative transition-colors hover:bg-gray-700
-                  ${item ? 'border-'+RARITY_COLORS[item.rarity].replace('#','') : 'border-gray-600'}`}
-                  style={{ borderColor: item ? RARITY_COLORS[item.rarity] : undefined }}
+                  ${item ? 'border-'+RARITY_CONFIG[item.rarity].color.replace('#','') : 'border-gray-600'}`}
+                  style={{ borderColor: item ? RARITY_CONFIG[item.rarity].color : undefined }}
                >
                   <div className="text-white drop-shadow-md z-10">
                       <ItemIcon item={item} size={isMobile ? 16 : 20} fallback={defaultIcon} />

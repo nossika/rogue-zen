@@ -5,21 +5,30 @@ import { checkRectOverlap } from '../utils';
 
 export const generateTerrain = (): Terrain[] => {
   const newTerrain: Terrain[] = [];
-  const count = Math.floor(25 + Math.random() * 15); 
+  const mapArea = MAP_WIDTH * MAP_HEIGHT;
   
   const safeX = MAP_WIDTH / 2 - 150;
   const safeY = MAP_HEIGHT / 2 - 150;
   const safeW = 300;
   const safeH = 300;
 
-  for (let i = 0; i < count; i++) {
-      let tType: TerrainType = 'WALL';
-      const roll = Math.random();
-      if (roll > 0.85) tType = 'WATER';
-      else if (roll > 0.70) tType = 'MUD';
-      else if (roll > 0.40) tType = 'EARTH_WALL'; 
-      else tType = 'WALL'; 
-      
+  // Build a list of terrain types to generate based on density
+  const spawnQueue: TerrainType[] = [];
+  (Object.keys(TERRAIN_CONFIG) as TerrainType[]).forEach(type => {
+      const density = TERRAIN_CONFIG[type].density;
+      const count = Math.floor(mapArea * density);
+      for (let i = 0; i < count; i++) {
+          spawnQueue.push(type);
+      }
+  });
+
+  // Shuffle the queue to mix generation order
+  for (let i = spawnQueue.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [spawnQueue[i], spawnQueue[j]] = [spawnQueue[j], spawnQueue[i]];
+  }
+
+  spawnQueue.forEach((tType, i) => {
       let tx, ty, tw, th;
       let attempts = 0;
       let valid = false;
@@ -83,56 +92,9 @@ export const generateTerrain = (): Terrain[] => {
               });
           }
       }
-  }
+  });
+
   return newTerrain;
-};
-
-export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: Terrain[]) => {
-    terrain.forEach(t => {
-        const conf = TERRAIN_CONFIG[t.type];
-        ctx.fillStyle = conf.color;
-        
-        if (t.type === 'WALL') {
-            ctx.fillRect(t.x, t.y, t.width, t.height);
-            const bevelH = Math.min(10, t.height * 0.4);
-            const bevelW = Math.min(5, t.width * 0.4);
-            ctx.fillStyle = '#475569';
-            ctx.fillRect(t.x, t.y, t.width, bevelH);
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(t.x + t.width - bevelW, t.y, bevelW, t.height);
-        } else if (t.type === 'EARTH_WALL') {
-            ctx.fillRect(t.x, t.y, t.width, t.height);
-            ctx.fillStyle = '#451a03'; 
-            const seed = parseInt(t.id.split('-').pop() || '0'); 
-            
-            ctx.fillRect(t.x + 4, t.y + 4, t.width - 8, t.height - 8);
-            
-            ctx.fillStyle = '#92400e'; 
-            ctx.beginPath();
-            ctx.rect(t.x + (seed % 20), t.y + (seed % 20), 4, 4);
-            ctx.fill();
-
-        } else if (t.type === 'WATER') {
-            ctx.beginPath();
-            ctx.roundRect(t.x, t.y, t.width, t.height, 20);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(t.x + 30, t.y + 30, 10, 0, Math.PI*2); ctx.stroke();
-        } else {
-            ctx.beginPath();
-            ctx.roundRect(t.x, t.y, t.width, t.height, 10);
-            ctx.fill();
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            for(let i=0; i<3; i++) {
-                const offsetX = (t.x * i * 17) % t.width;
-                const offsetY = (t.y * i * 23) % t.height;
-                ctx.beginPath(); 
-                ctx.arc(t.x + offsetX, t.y + offsetY, 2, 0, Math.PI*2); 
-                ctx.fill();
-            }
-        }
-    });
 };
 
 export const getTerrainAt = (terrain: Terrain[], x: number, y: number, w: number, h: number): TerrainType | null => {

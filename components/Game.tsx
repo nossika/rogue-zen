@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, Rarity, FloatingText, Terrain, ElementType, Hazard, HazardType, GoldDrop, UpgradeReward, Particle, SpatialHashGrid } from '../types';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, GOLD_VALUES } from '../constants';
+import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, FloatingText, Terrain, Hazard, HazardType, GoldDrop, UpgradeReward, Particle, SpatialHashGrid, ElementType } from '../types';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, INITIAL_PLAYER_WEAPON } from '../constants';
 
 // Sub-components
 import { GameHUD } from './GameHUD';
@@ -9,7 +9,6 @@ import { GameTooltip } from './GameTooltip';
 import { UltimateButton } from './Ultimate';
 
 // Systems
-import * as TerrainSystem from '@/systems/world/Terrain';
 import * as PlayerSystem from '@/systems/entities/Player';
 import * as EnemySystem from '@/systems/entities/Enemy';
 import * as WeaponSystem from '@/systems/combat/Weapon';
@@ -79,17 +78,7 @@ const Game: React.FC<GameProps> = ({
     dead: false,
     angle: 0,
     equipment: { 
-      weapon1: {
-         id: 'starter_sword',
-         name: 'Rusty Sword',
-         type: 'WEAPON',
-         subtype: 'SWORD',
-         element: ElementType.NONE,
-         rarity: Rarity.COMMON,
-         stats: { attack: 10, range: 100, attackSpeed: 1.4, knockback: 8, critChance: 0.1, armorOnHit: 0 },
-         level: 1,
-         durability: 100
-      }, 
+      weapon1: { ...INITIAL_PLAYER_WEAPON }, 
       weapon2: null, 
       armor1: null,
       armor2: null 
@@ -198,7 +187,7 @@ const Game: React.FC<GameProps> = ({
   const handleDevSkip = () => {
       stageInfoRef.current.stageCleared = true;
       onStageClearWrapper();
-      FloatingTextSystem.createFloatingText(floatingTextsRef.current, playerRef.current.x, playerRef.current.y - 50, "DEV SKIP", "#00ff00", true);
+      spawnFloatingText(playerRef.current.x, playerRef.current.y - 50, "DEV SKIP", "#00ff00", true);
   };
 
   const { keysRef, handleJoystickMove } = useGameInput(onPauseToggle, handleActivateUltimate, handleDevSkip);
@@ -303,11 +292,7 @@ const Game: React.FC<GameProps> = ({
       PlayerSystem.handlePlayerDamage(
           playerRef.current,
           damage,
-          {
-              invincibility: invincibilityRef,
-              hurt: hurtTimerRef,
-              slowed: slowedTimerRef
-          },
+          { invincibility: invincibilityRef, hurt: hurtTimerRef, slowed: slowedTimerRef },
           floatingTextsRef.current,
           spawnSplatter,
           ignoreShield,
@@ -315,341 +300,298 @@ const Game: React.FC<GameProps> = ({
       );
   };
 
-  const update = (dt: number) => {
-    const p = playerRef.current;
-    if (p.dead || stageInfoRef.current.stageCleared) return;
-
-    spatialGridRef.current.clear();
-    
-    p.ultimateCharge = Math.min(100, p.ultimateCharge + dt * p.stats.ultChargeRate);
-
-    PlayerSystem.updatePlayerMovement(p, keysRef.current, terrainRef.current, speedBoostRef.current, slowedTimerRef.current > 0);
-
-    CameraSystem.updateCamera(cameraRef.current, p);
-
-    if (timeStopRef.current > 0) timeStopRef.current--;
-    if (invincibilityRef.current > 0) invincibilityRef.current--;
-    if (hurtTimerRef.current > 0) hurtTimerRef.current--;
-    if (slowedTimerRef.current > 0) slowedTimerRef.current--;
-    if (speedBoostRef.current > 0) speedBoostRef.current--;
-    if (omniForceRef.current > 0) omniForceRef.current--;
-    if (cooldown1Ref.current > 0) cooldown1Ref.current--;
-    if (cooldown2Ref.current > 0) cooldown2Ref.current--;
-
-    FloatingTextSystem.updateFloatingTexts(floatingTextsRef.current);
-    ParticleSystem.updateParticles(particlesRef.current);
-    
-    LootSystem.updateLoot(p, goldDropsRef.current, spawnFloatingText);
-    
-    HazardSystem.updateHazards(
-        hazardsRef.current, 
-        p, 
-        enemiesRef.current, 
-        terrainRef.current, 
-        dt, 
-        fireDamageAccumulatorRef, 
-        spawnFloatingText, 
-        handlePlayerHit,
-        spawnSplatter
-    );
-
-    if (timeStopRef.current <= 0) {
-      spawnTimerRef.current--;
-      if (spawnTimerRef.current <= 0) {
-        EnemySystem.spawnEnemy(enemiesRef.current, p, terrainRef.current, currentStage, stageInfoRef.current);
-        const count = enemiesRef.current.length;
-        spawnTimerRef.current = count > 10 ? 60 : 30; 
-      }
-    }
-
-    EnemySystem.updateEnemies(
-        enemiesRef.current, 
-        p, 
-        terrainRef.current, 
-        projectilesRef.current, 
-        timeStopRef.current > 0, 
-        spawnFloatingText,
-        spawnSplatter, 
-        handlePlayerHit,
-        handleCreateHazard, 
-        spatialGridRef.current 
-    );
-
-    if (p.equipment.weapon1) WeaponSystem.fireWeapon(p, p.equipment.weapon1, enemiesRef.current, projectilesRef.current, cooldown1Ref, speedBoostRef.current);
-    if (p.equipment.weapon2) WeaponSystem.fireWeapon(p, p.equipment.weapon2, enemiesRef.current, projectilesRef.current, cooldown2Ref, speedBoostRef.current);
-
-    ProjectileSystem.updateProjectiles(
-        projectilesRef.current, 
-        enemiesRef.current, 
-        p, 
-        terrainRef.current, 
-        spawnFloatingText,
-        spawnSplatter,
-        handlePlayerHit,
-        handleCreateHazard,
-        omniForceRef.current > 0,
-        spatialGridRef.current 
-    );
-
-    for (let i = enemiesRef.current.length - 1; i >= 0; i--) {
-       const enemy = enemiesRef.current[i];
-       
-       if (enemy.stats.hp <= 0) {
-           if (!enemy.dead) {
-               enemy.dead = true;
-               enemy.deathTimer = 25; 
-               AudioSystem.playKill();
-
-               let goldReward = 0;
-               if (enemy.type === 'BOSS') {
-                   const remainingBosses = enemiesRef.current.filter(e => e.type === 'BOSS' && !e.dead && e.id !== enemy.id).length;
-                   
-                   if (remainingBosses === 0) {
-                       goldReward = GOLD_VALUES.BOSS_KILL;
-                       stageInfoRef.current.stageCleared = true;
-                       onStageClearWrapper();
-                       if (p.gold) p.gold += goldReward; else p.gold = goldReward;
-                   } else {
-                       goldReward = GOLD_VALUES.BOSS_KILL / 2;
-                       if (p.gold) p.gold += goldReward; else p.gold = goldReward;
-                   }
-               } else if (enemy.isMinion) {
-                   goldReward = GOLD_VALUES.MINION_KILL;
-               } else {
-                   goldReward = GOLD_VALUES.ENEMY_KILL;
-                   stageInfoRef.current.killedCount++;
-               }
-
-               if (goldReward > 0 && enemy.type !== 'BOSS') {
-                   p.gold += goldReward;
-               }
-           }
-       }
-       
-       if (enemy.dead) {
-           enemy.deathTimer = (enemy.deathTimer || 0) - 1;
-           if (enemy.deathTimer <= 0) {
-               enemiesRef.current.splice(i, 1);
-           }
-       }
-    }
-
-    if (StageSystem.checkStageClearCondition(stageInfoRef.current)) {
-        stageInfoRef.current.stageCleared = true;
-        onStageClearWrapper();
-    }
-
-    if (p.stats.hp <= 0) {
-      p.dead = true;
-      onGameOver(p.level);
-    }
-
-    uiUpdateFrameRef.current++;
-    if (uiUpdateFrameRef.current % 6 === 0) {
-        const activeUlts: UltimateType[] = [];
-        if (p.equipment.weapon1?.ultimate) activeUlts.push(p.equipment.weapon1.ultimate);
-        if (p.equipment.weapon2?.ultimate) activeUlts.push(p.equipment.weapon2.ultimate);
-        
-        const uniqueUlts = Array.from(new Set(activeUlts));
-        const hasUltimate = uniqueUlts.length > 0;
-
-        setUiState({
-          hp: p.stats.hp,
-          maxHp: p.stats.maxHp,
-          shield: p.stats.shield,
-          ult: p.ultimateCharge,
-          enemiesLeft: stageInfoRef.current.isBossStage ? 1 : stageInfoRef.current.totalEnemies - stageInfoRef.current.killedCount,
-          gold: p.gold,
-          weapon1: p.equipment.weapon1,
-          weapon2: p.equipment.weapon2,
-          armor1: p.equipment.armor1,
-          armor2: p.equipment.armor2,
-          hasUltimate,
-          activeUltimates: uniqueUlts,
-          stats: { ...p.stats }
-        });
-    }
-  };
-
-  const draw = (ctx: CanvasRenderingContext2D) => {
-      RenderSystem.drawGame({
-          ctx,
-          camera: cameraRef.current,
-          terrain: terrainRef.current,
-          hazards: hazardsRef.current,
-          goldDrops: goldDropsRef.current,
-          player: playerRef.current,
-          enemies: enemiesRef.current,
-          projectiles: projectilesRef.current,
-          floatingTexts: floatingTextsRef.current,
-          particles: particlesRef.current,
-          assets,
-          hurtTimer: hurtTimerRef.current,
-          invincibilityTimer: invincibilityRef.current,
-          omniForceActive: omniForceRef.current > 0
-      });
-  };
-
   useEffect(() => {
     let animationFrameId: number;
-    const loop = (time: number) => {
-      if (!isPaused) {
-         const dt = (time - lastTimeRef.current) / 1000;
-         lastTimeRef.current = time;
-         update(dt);
+
+    const loop = (timestamp: number) => {
+      if (isPaused) {
+        lastTimeRef.current = timestamp;
+        animationFrameId = requestAnimationFrame(loop);
+        return;
       }
-      const canvas = canvasRef.current;
-      if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) draw(ctx);
+
+      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+      const deltaTime = timestamp - lastTimeRef.current;
+      lastTimeRef.current = timestamp;
+
+      // Update Timers
+      if (timeStopRef.current > 0) timeStopRef.current--;
+      if (invincibilityRef.current > 0) invincibilityRef.current--;
+      if (hurtTimerRef.current > 0) hurtTimerRef.current--;
+      if (slowedTimerRef.current > 0) slowedTimerRef.current--;
+      if (speedBoostRef.current > 0) speedBoostRef.current--;
+      if (omniForceRef.current > 0) omniForceRef.current--;
+
+      const isTimeStop = timeStopRef.current > 0;
+      const isOmniForce = omniForceRef.current > 0;
+
+      // 1. Spawning
+      if (!isTimeStop) {
+        if (!stageInfoRef.current.isBossStage || stageInfoRef.current.spawnedCount === 0) {
+            spawnTimerRef.current += deltaTime;
+            if (spawnTimerRef.current > 500) { // Spawn interval
+                EnemySystem.spawnEnemy(enemiesRef.current, playerRef.current, terrainRef.current, currentStage, stageInfoRef.current);
+                spawnTimerRef.current = 0;
+            }
+        }
       }
+
+      // 2. Clear Grid
+      spatialGridRef.current.clear();
+
+      // 3. Update Entities
+      const p = playerRef.current;
+
+      PlayerSystem.updatePlayerMovement(p, keysRef.current, terrainRef.current, speedBoostRef.current, slowedTimerRef.current > 0);
+      
+      EnemySystem.updateEnemies(
+          enemiesRef.current, 
+          p, 
+          terrainRef.current, 
+          projectilesRef.current, 
+          isTimeStop,
+          spawnFloatingText,
+          spawnSplatter,
+          handlePlayerHit,
+          handleCreateHazard,
+          spatialGridRef.current
+      );
+
+      ProjectileSystem.updateProjectiles(
+          projectilesRef.current, 
+          enemiesRef.current, 
+          p, 
+          terrainRef.current, 
+          spawnFloatingText, 
+          spawnSplatter, 
+          handlePlayerHit,
+          handleCreateHazard,
+          isOmniForce,
+          spatialGridRef.current
+      );
+      
+      LootSystem.updateLoot(p, goldDropsRef.current, spawnFloatingText);
+      
+      HazardSystem.updateHazards(
+          hazardsRef.current, 
+          p, 
+          enemiesRef.current, 
+          terrainRef.current, 
+          1, // dt approximation for hazard tick
+          fireDamageAccumulatorRef, 
+          spawnFloatingText, 
+          handlePlayerHit,
+          spawnSplatter
+      );
+
+      FloatingTextSystem.updateFloatingTexts(floatingTextsRef.current);
+      ParticleSystem.updateParticles(particlesRef.current);
+
+      // 4. Combat & Auto-Attack
+      if (cooldown1Ref.current > 0) cooldown1Ref.current--;
+      if (cooldown2Ref.current > 0) cooldown2Ref.current--;
+
+      if (p.equipment.weapon1) {
+          WeaponSystem.fireWeapon(p, p.equipment.weapon1, enemiesRef.current, projectilesRef.current, cooldown1Ref, speedBoostRef.current);
+      }
+      if (p.equipment.weapon2) {
+          WeaponSystem.fireWeapon(p, p.equipment.weapon2, enemiesRef.current, projectilesRef.current, cooldown2Ref, speedBoostRef.current);
+      }
+
+      // 5. Cleanup Dead
+      let killedThisFrame = 0;
+      for (let i = enemiesRef.current.length - 1; i >= 0; i--) {
+        const e = enemiesRef.current[i];
+        if (e.stats.hp <= 0) {
+            if (!e.dead) {
+                 e.dead = true;
+                 e.deathTimer = 25; 
+                 
+                 killedThisFrame++;
+                 
+                 if (e.type === 'BOSS') {
+                     AudioSystem.playKill(); // Boom
+                 } else {
+                     AudioSystem.playKill();
+                 }
+
+                 if (Math.random() < 0.3 || e.type === 'BOSS') { // 30% gold chance
+                    const drops = LootSystem.spawnGold(terrainRef.current, e.type === 'BOSS' ? 10 : 1);
+                    drops.forEach(d => {
+                        d.x = e.x + (Math.random()*20-10);
+                        d.y = e.y + (Math.random()*20-10);
+                        goldDropsRef.current.push(d);
+                    });
+                 }
+            }
+        }
+        
+        if (e.dead) {
+            if (e.deathTimer && e.deathTimer > 0) {
+                e.deathTimer--;
+            } else {
+                enemiesRef.current.splice(i, 1);
+                // Only count non-minions towards stage clear (unless boss stage logic handles it)
+                if (!e.isMinion) stageInfoRef.current.killedCount++;
+            }
+        }
+      }
+
+      // Charge Ult passively
+      if (p.stats.ultChargeRate > 0) {
+          p.ultimateCharge = Math.min(100, p.ultimateCharge + (p.stats.ultChargeRate / 60));
+      }
+
+      // 6. Check Win/Loss
+      if (p.stats.hp <= 0 && !p.dead) {
+          p.dead = true;
+          onGameOver(currentStage);
+      }
+
+      if (StageSystem.checkStageClearCondition(stageInfoRef.current)) {
+           stageInfoRef.current.stageCleared = true;
+           onStageClearWrapper();
+      }
+
+      // 7. Render
+      CameraSystem.updateCamera(cameraRef.current, p);
+      
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+            RenderSystem.drawGame({
+                ctx,
+                camera: cameraRef.current,
+                terrain: terrainRef.current,
+                hazards: hazardsRef.current,
+                goldDrops: goldDropsRef.current,
+                player: p,
+                enemies: enemiesRef.current,
+                projectiles: projectilesRef.current,
+                floatingTexts: floatingTextsRef.current,
+                particles: particlesRef.current,
+                assets,
+                hurtTimer: hurtTimerRef.current,
+                invincibilityTimer: invincibilityRef.current,
+                omniForceActive: isOmniForce
+            });
+        }
+      }
+
+      // 8. Update UI State (Throttled)
+      uiUpdateFrameRef.current++;
+      if (uiUpdateFrameRef.current % 5 === 0) {
+          const activeUlts = [];
+          if (p.equipment.weapon1?.ultimate) activeUlts.push(p.equipment.weapon1.ultimate);
+          if (p.equipment.weapon2?.ultimate) activeUlts.push(p.equipment.weapon2.ultimate);
+
+          setUiState({
+             hp: p.stats.hp,
+             maxHp: p.stats.maxHp,
+             shield: p.stats.shield,
+             ult: p.ultimateCharge,
+             gold: p.gold,
+             enemiesLeft: stageInfoRef.current.totalEnemies - stageInfoRef.current.killedCount,
+             weapon1: p.equipment.weapon1,
+             weapon2: p.equipment.weapon2,
+             armor1: p.equipment.armor1,
+             armor2: p.equipment.armor2,
+             hasUltimate: activeUlts.length > 0,
+             activeUltimates: activeUlts,
+             stats: p.stats
+          });
+      }
+
       animationFrameId = requestAnimationFrame(loop);
     };
+
     animationFrameId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isPaused, assets]); 
-  
-  const handleMouseEnterItem = (item: Item | null, e: React.MouseEvent) => {
-      if (!item || isMobile) return; 
-      const rect = e.currentTarget.getBoundingClientRect();
+  }, [isPaused, currentStage, onGameOver, onStageClear]);
+
+  // Handle Tooltips
+  const handleItemClick = (item: Item | null, e: React.MouseEvent) => {
+      if (!item) {
+          setTooltip(null);
+          return;
+      }
+      e.stopPropagation();
       setTooltip({
           type: 'ITEM',
           content: item,
-          x: rect.left,
-          y: rect.bottom + 10
+          x: Math.min(e.clientX, window.innerWidth - 260),
+          y: Math.min(e.clientY, window.innerHeight - 200)
       });
   };
-  
-  const handleMouseEnterStats = (e: React.MouseEvent) => {
-      if (isMobile) return;
-      const rect = e.currentTarget.getBoundingClientRect();
+
+  const handleStatsClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
       setTooltip({
           type: 'STATS',
-          content: uiState.stats,
-          x: rect.left,
-          y: rect.bottom + 10
+          content: playerRef.current.stats,
+          x: Math.min(e.clientX, window.innerWidth - 260),
+          y: e.clientY + 20
       });
   };
-  
-  const handleClickItem = (item: Item | null, e: React.MouseEvent) => {
-      if (!isMobile || !item) return;
-      e.stopPropagation(); 
-      const rect = e.currentTarget.getBoundingClientRect();
-      if (tooltip && tooltip.type === 'ITEM' && tooltip.content === item) {
-          setTooltip(null);
-      } else {
-         setTooltip({
-             type: 'ITEM',
-             content: item,
-             x: rect.left, 
-             y: rect.bottom + 10
-         });
-      }
-  };
 
-  const handleClickStats = (e: React.MouseEvent) => {
-      if (!isMobile) return;
-      e.stopPropagation();
-      const rect = e.currentTarget.getBoundingClientRect();
-      if (tooltip && tooltip.type === 'STATS') {
-          setTooltip(null);
-      } else {
-          setTooltip({
-              type: 'STATS',
-              content: uiState.stats,
-              x: rect.left,
-              y: rect.bottom + 10
-          });
-      }
-  };
-
-  const handleMouseEnterUlt = (e: React.MouseEvent) => {
-    if (isMobile) return;
-    const p = playerRef.current;
-    const ults: UltimateType[] = [];
-    if (p.equipment.weapon1?.ultimate) ults.push(p.equipment.weapon1.ultimate);
-    if (p.equipment.weapon2?.ultimate) ults.push(p.equipment.weapon2.ultimate);
-    const uniqueUlts = Array.from(new Set(ults));
-    if (uniqueUlts.length === 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
+  const handleUltClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const activeUlts = [];
+    if (playerRef.current.equipment.weapon1?.ultimate) activeUlts.push(playerRef.current.equipment.weapon1.ultimate);
+    if (playerRef.current.equipment.weapon2?.ultimate) activeUlts.push(playerRef.current.equipment.weapon2.ultimate);
+    
     setTooltip({
         type: 'ULTIMATE',
-        content: uniqueUlts,
-        x: rect.left,
-        y: rect.bottom + 10
+        content: activeUlts,
+        x: Math.min(e.clientX, window.innerWidth - 260),
+        y: e.clientY + 20
     });
-  };
-
-  const handleClickUlt = (e: React.MouseEvent) => {
-      if (!isMobile) return;
-      e.stopPropagation();
-      const p = playerRef.current;
-      const ults: UltimateType[] = [];
-      if (p.equipment.weapon1?.ultimate) ults.push(p.equipment.weapon1.ultimate);
-      if (p.equipment.weapon2?.ultimate) ults.push(p.equipment.weapon2.ultimate);
-      const uniqueUlts = Array.from(new Set(ults));
-      if (uniqueUlts.length === 0) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      if (tooltip && tooltip.type === 'ULTIMATE') {
-          setTooltip(null);
-      } else {
-          setTooltip({
-              type: 'ULTIMATE',
-              content: uniqueUlts,
-              x: rect.left,
-              y: rect.bottom + 10
-          });
-      }
   };
 
   return (
     <div 
-        className="relative w-full h-full shadow-2xl rounded-xl overflow-hidden border-4 border-gray-700 bg-black touch-none mx-auto"
-        onClick={() => { if(tooltip) setTooltip(null); }}
+        className="relative w-full h-full cursor-crosshair select-none overflow-hidden touch-none"
+        onClick={() => setTooltip(null)}
     >
-      <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="block w-full h-full object-contain bg-[#1a1a2e]" />
-      <img id="player-asset-img" src={assets.playerSprite || ''} className="hidden" alt="" />
-      <img id="enemy-asset-img" src={assets.enemySprite || ''} className="hidden" alt="" />
+        <canvas
+            ref={canvasRef}
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            className="w-full h-full object-contain bg-black"
+        />
 
-      <GameHUD 
-          uiState={uiState}
-          currentStage={currentStage}
-          isBossStage={stageInfoRef.current.isBossStage}
-          isMobile={isMobile}
-          onMouseEnterItem={handleMouseEnterItem}
-          onMouseLeaveItem={() => !isMobile && setTooltip(null)}
-          onClickItem={handleClickItem}
-          onMouseEnterStats={handleMouseEnterStats}
-          onClickStats={handleClickStats}
-          onMouseEnterUlt={handleMouseEnterUlt}
-          onClickUlt={handleClickUlt}
-      />
-      
-      <GameTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
-      
-      {!isMobile && !isPaused && (
-          <UltimateButton 
-              hasUltimate={uiState.hasUltimate}
-              ult={uiState.ult}
-              activeUltimates={uiState.activeUltimates}
-              isMobile={false}
-              onActivate={handleActivateUltimate}
-          />
-      )}
+        <GameHUD 
+            uiState={uiState}
+            currentStage={currentStage}
+            isBossStage={stageInfoRef.current.isBossStage}
+            isMobile={isMobile}
+            onMouseEnterItem={() => {}} // Tooltips on click mainly for touch support
+            onMouseLeaveItem={() => {}}
+            onClickItem={handleItemClick}
+            onMouseEnterStats={() => {}}
+            onClickStats={handleStatsClick}
+            onMouseEnterUlt={() => {}}
+            onClickUlt={handleUltClick}
+        />
 
-      {isMobile && !isPaused && (
-          <>
-            <VirtualJoystick onMove={handleJoystickMove} forceLandscape={isPortrait} />
-            <UltimateButton 
-                hasUltimate={uiState.hasUltimate}
-                ult={uiState.ult}
-                activeUltimates={uiState.activeUltimates}
-                isMobile={true}
-                onActivate={handleActivateUltimate}
+        <UltimateButton 
+            hasUltimate={uiState.hasUltimate}
+            ult={uiState.ult}
+            activeUltimates={uiState.activeUltimates}
+            isMobile={isMobile}
+            onActivate={handleActivateUltimate}
+        />
+
+        {tooltip && (
+            <GameTooltip 
+                tooltip={tooltip} 
+                onClose={() => setTooltip(null)} 
             />
-          </>
-      )}
+        )}
 
+        {isMobile && !isPaused && (
+             <VirtualJoystick onMove={handleJoystickMove} forceLandscape={isPortrait} />
+        )}
     </div>
   );
 };
