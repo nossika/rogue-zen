@@ -236,7 +236,7 @@ export const spawnMinion = (enemies: Enemy[], boss: Enemy, terrain: Terrain[]) =
         shield: 0,
         attack: boss.stats.attack * 0.4,
         defense: 0,
-        moveSpeed: (1.5 + Math.random() * 1) * config.speedMult,
+        moveSpeed: (1 + Math.random() * 1) * config.speedMult,
         attackSpeed: 1,
         range: 30,
         blockChance: 0,

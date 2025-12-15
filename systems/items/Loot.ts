@@ -1,11 +1,13 @@
 
 import { GoldDrop, Player, Terrain } from '../../types';
-import { MAP_WIDTH, MAP_HEIGHT, GOLD_VALUES } from '../../constants';
+import { MAP_WIDTH, MAP_HEIGHT } from '../../constants';
 import * as TerrainSystem from '../world/Terrain';
 import { AudioSystem } from '../core/Audio';
 
-export const spawnGold = (terrain: Terrain[], count: number): GoldDrop[] => {
+export const spawnGold = (terrain: Terrain[], totalValue: number, count: number = 1): GoldDrop[] => {
     const drops: GoldDrop[] = [];
+    const valuePerDrop = Math.max(1, Math.floor(totalValue / count));
+
     for(let i=0; i<count; i++) {
         let gx, gy;
         let attempts = 0;
@@ -23,7 +25,7 @@ export const spawnGold = (terrain: Terrain[], count: number): GoldDrop[] => {
                 id: `gold-${Math.random()}`,
                 x: gx!,
                 y: gy!,
-                amount: GOLD_VALUES.NUGGET,
+                amount: valuePerDrop,
                 collected: false
             });
         }

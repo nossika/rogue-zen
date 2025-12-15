@@ -3,8 +3,8 @@ import { TerrainType, Stats, Rarity, ElementType, UltimateType, TalentType, Weap
 
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 800;
-export const MAP_WIDTH = 2000;
-export const MAP_HEIGHT = 2000;
+export const MAP_WIDTH = 1600;
+export const MAP_HEIGHT = 1600;
 
 export const INITIAL_PLAYER_STATS: Stats = {
     maxHp: 150,
@@ -40,11 +40,20 @@ export const COLOR_PALETTE = {
     player: '#3b82f6', // blue-500
 };
 
-export const GOLD_VALUES = {
-    NUGGET: 10,
-    ENEMY_KILL: 5,
-    MINION_KILL: 1,
-    BOSS_KILL: 100
+export const GOLD_CONFIG = {
+    ENEMY: {
+        CHANCE: 0.3,
+        VALUE: 5,
+    },
+    BOSS: {
+        CHANCE: 1.0,
+        VALUE: 100,
+    },
+    INITIAL: {
+        MIN: 1,
+        MAX: 4,
+        VALUE: 30
+    }
 };
 
 export const RARITY_CONFIG: Record<Rarity, RarityConfigDefinition> = {
@@ -99,8 +108,8 @@ export const ELEMENT_ADVANTAGE: Record<ElementType, ElementType> = {
 };
 
 export const REROLL_COST = {
-    BASE: 50,
-    INCREMENT: 25
+    BASE: 100,
+    INCREMENT: 10
 };
 
 interface WeaponConfig {
@@ -143,7 +152,7 @@ export const ARMOR_BASE_CONFIG: Record<ArmorType, ArmorConfig> = {
     },
     GLOVES: {
         name: 'Gloves',
-        baseStats: { range: 30, attackSpeed: 0.1 }
+        baseStats: { range: 30, attackSpeed: 0.2 }
     },
     BOOTS: {
         name: 'Boots',

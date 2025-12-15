@@ -1,6 +1,6 @@
 
 import { Player, Enemy, Projectile, FloatingText, Terrain, Hazard, GoldDrop, Particle } from '../../types';
-import { MAP_WIDTH, MAP_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING } from '../../constants';
+import { MAP_WIDTH, MAP_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING, GOLD_CONFIG } from '../../constants';
 import * as TerrainSystem from '../world/Terrain';
 import * as LootSystem from '../items/Loot';
 import * as TalentSystem from '../items/Talent';
@@ -79,15 +79,22 @@ export const initializeStage = (ctx: StageSetupContext) => {
     ctx.terrain.length = 0;
     ctx.terrain.push(...newTerrain);
 
-    const goldCount = Math.floor(Math.random() * 5) + 1;
-    const newGold = LootSystem.spawnGold(ctx.terrain, goldCount);
+    // Initial Gold Spawn
+    const min = GOLD_CONFIG.INITIAL.MIN;
+    const max = GOLD_CONFIG.INITIAL.MAX;
+    const val = GOLD_CONFIG.INITIAL.VALUE;
+    const goldCount = Math.floor(Math.random() * (max - min + 1)) + min;
+    
+    // To properly distribute value among drops if spawnGold divides total value
+    const totalValue = goldCount * val;
+    const newGold = LootSystem.spawnGold(ctx.terrain, totalValue, goldCount);
     ctx.goldDrops.push(...newGold);
 };
 
 export const checkStageClearCondition = (stageInfo: { killedCount: number; totalEnemies: number; stageCleared: boolean; isBossStage: boolean }): boolean => {
     if (stageInfo.stageCleared) return false; // Already cleared
 
-    if (!stageInfo.isBossStage && stageInfo.killedCount >= stageInfo.totalEnemies) {
+    if (stageInfo.killedCount >= stageInfo.totalEnemies) {
         return true;
     }
     return false;

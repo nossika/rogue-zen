@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, FloatingText, Terrain, Hazard, HazardType, GoldDrop, UpgradeReward, Particle, SpatialHashGrid, ElementType } from '../types';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, INITIAL_PLAYER_WEAPON } from '../constants';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, INITIAL_PLAYER_WEAPON, GOLD_CONFIG } from '../constants';
 
 // Sub-components
 import { GameHUD } from './GameHUD';
@@ -103,6 +103,7 @@ const Game: React.FC<GameProps> = ({
 
   const lastTimeRef = useRef<number>(0);
   const spawnTimerRef = useRef<number>(0);
+  const stageClearTimerRef = useRef<number>(0);
   
   // UI Throttling
   const uiUpdateFrameRef = useRef<number>(0);
@@ -217,6 +218,7 @@ const Game: React.FC<GameProps> = ({
         initialGold
     });
 
+    stageClearTimerRef.current = 0;
     stageStartHpRef.current = playerRef.current.stats.hp;
 
   }, [currentStage, initialGold]); 
@@ -408,20 +410,40 @@ const Game: React.FC<GameProps> = ({
                  e.deathTimer = 25; 
                  
                  killedThisFrame++;
-                 
-                 if (e.type === 'BOSS') {
-                     AudioSystem.playKill(); // Boom
-                 } else {
-                     AudioSystem.playKill();
-                 }
 
-                 if (Math.random() < 0.3 || e.type === 'BOSS') { // 30% gold chance
-                    const drops = LootSystem.spawnGold(terrainRef.current, e.type === 'BOSS' ? 10 : 1);
+                 const remainingNonMinions = enemiesRef.current.filter(en => !en.isMinion && !en.dead).length;
+                 const isLastEnemy = remainingNonMinions === 0;
+
+                 AudioSystem.playKill();
+                 if (e.type === 'BOSS') {
+                     const drops = LootSystem.spawnGold(terrainRef.current, GOLD_CONFIG.BOSS.VALUE);
+                     
+                     // Force auto-pickup if it's the last enemy OR if it's a boss stage (where boss is the primary target)
                     drops.forEach(d => {
-                        d.x = e.x + (Math.random()*20-10);
-                        d.y = e.y + (Math.random()*20-10);
-                        goldDropsRef.current.push(d);
+                        p.gold += d.amount;
+                        spawnFloatingText(p.x, p.y - 40, `+${d.amount} Gold`, '#fbbf24');
+                        AudioSystem.playGoldPickup();
                     });
+                 } else {
+                     if (!e.isMinion) { // Minions do not drop gold
+                        if (Math.random() < GOLD_CONFIG.ENEMY.CHANCE) {
+                            const drops = LootSystem.spawnGold(terrainRef.current, GOLD_CONFIG.ENEMY.VALUE);
+                            
+                            if (isLastEnemy) {
+                            drops.forEach(d => {
+                                p.gold += d.amount;
+                                spawnFloatingText(p.x, p.y - 40, `+${d.amount} Gold`, '#fbbf24');
+                                AudioSystem.playGoldPickup();
+                            });
+                            } else {
+                            drops.forEach(d => {
+                                d.x = e.x + (Math.random()*20-10);
+                                d.y = e.y + (Math.random()*20-10);
+                                goldDropsRef.current.push(d);
+                            });
+                            }
+                        }
+                     }
                  }
             }
         }
@@ -448,9 +470,17 @@ const Game: React.FC<GameProps> = ({
           onGameOver(currentStage);
       }
 
-      if (StageSystem.checkStageClearCondition(stageInfoRef.current)) {
-           stageInfoRef.current.stageCleared = true;
-           onStageClearWrapper();
+      if (StageSystem.checkStageClearCondition(stageInfoRef.current) && stageClearTimerRef.current === 0) {
+           stageClearTimerRef.current = 1; // Start Delay
+      }
+
+      if (stageClearTimerRef.current > 0) {
+           stageClearTimerRef.current++;
+           if (stageClearTimerRef.current > 90) { // 1.5 second delay
+               stageInfoRef.current.stageCleared = true;
+               onStageClearWrapper();
+               stageClearTimerRef.current = 0;
+           }
       }
 
       // 7. Render
