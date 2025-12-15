@@ -1,6 +1,6 @@
 
-import { Player, Enemy, UltimateType, TalentType, Item, Terrain } from '../types';
-import { ULTIMATE_CONFIG } from '../constants';
+import { Player, Enemy, UltimateType, TalentType, Item, Terrain } from '../../types';
+import { ULTIMATE_CONFIG } from '../../constants';
 
 interface UltimateContext {
     player: Player;
@@ -10,7 +10,7 @@ interface UltimateContext {
     timeStopRef: { current: number };
     invincibilityRef: { current: number };
     speedBoostRef: { current: number };
-    omniForceRef: { current: number }; // Replaced critSurgeRef
+    omniForceRef: { current: number }; 
 }
 
 export const activateUltimate = (context: UltimateContext) => {
@@ -18,11 +18,10 @@ export const activateUltimate = (context: UltimateContext) => {
     
     if (p.ultimateCharge < 100) return;
     
-    // Check for Scientist Talent Multipliers
     let effectMult = 1.0;
     const checkScientist = (item: Item | null) => {
         if (item?.talent?.type === TalentType.SCIENTIST) {
-            effectMult += (item.talent.value2 || 1.0) - 1.0; // Additive stacking for multipliers over 1
+            effectMult += (item.talent.value2 || 1.0) - 1.0; 
         }
     };
     checkScientist(p.equipment.armor1);
@@ -74,8 +73,6 @@ export const activateUltimate = (context: UltimateContext) => {
               spawnFloatingText(p.x, p.y - 50, "OMNI FORCE!", '#ff0055', true);
               break;
             case UltimateType.BLOCK:
-              // Determine direction logic:
-              // Abs(cos) > Abs(sin) means mainly moving horizontal -> Spawn Vertical Wall
               const isHorizontalMove = Math.abs(Math.cos(p.angle)) > Math.abs(Math.sin(p.angle));
               
               const wallThick = 40;
@@ -85,15 +82,12 @@ export const activateUltimate = (context: UltimateContext) => {
               let tx, ty, w, h;
               
               if (isHorizontalMove) {
-                  // Facing Left/Right -> Vertical Wall (|)
                   w = wallThick;
                   h = wallLen;
-                  // Position ~60px in front
                   const dir = Math.cos(p.angle) > 0 ? 1 : -1;
                   tx = p.x + (dir * 60) - w/2; 
                   ty = p.y - h/2;
               } else {
-                  // Facing Up/Down -> Horizontal Wall (-)
                   w = wallLen;
                   h = wallThick;
                   const dir = Math.sin(p.angle) > 0 ? 1 : -1;
@@ -108,7 +102,7 @@ export const activateUltimate = (context: UltimateContext) => {
                       y: ty,
                       width: w,
                       height: h,
-                      type: 'WALL' // Permanent Wall
+                      type: 'WALL' 
                   });
               }
               spawnFloatingText(p.x, p.y - 50, "WALL!", '#78350f', true);

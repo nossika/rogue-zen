@@ -1,13 +1,13 @@
 
-import { Player, Enemy, Projectile, Terrain, Hazard, GoldDrop, FloatingText, GameAssets, SpatialHashGrid, Particle } from '../types';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, COLOR_PALETTE, ELEMENT_CONFIG, DETAIL_COLORS } from '../constants';
-import * as TerrainSystem from './TerrainSystem';
-import * as HazardSystem from './HazardSystem';
-import * as LootSystem from './LootSystem';
-import * as PlayerSystem from './PlayerSystem';
-import * as EnemySystem from './EnemySystem';
-import * as ProjectileSystem from './ProjectileSystem';
-import * as ParticleSystem from './ParticleSystem';
+import { Player, Enemy, Projectile, Terrain, Hazard, GoldDrop, FloatingText, GameAssets, SpatialHashGrid, Particle } from '../../types';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, COLOR_PALETTE } from '../../constants';
+import * as TerrainSystem from '../world/Terrain';
+import * as HazardSystem from '../combat/Hazard';
+import * as LootSystem from '../items/Loot';
+import * as PlayerSystem from '../entities/Player';
+import * as EnemySystem from '../entities/Enemy';
+import * as ProjectileSystem from '../combat/Projectile';
+import * as ParticleSystem from '../ui/Particle';
 
 interface DrawContext {
     ctx: CanvasRenderingContext2D;

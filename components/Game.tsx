@@ -1,24 +1,29 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, Rarity, FloatingText, Terrain, ElementType, ArmorType, Hazard, HazardType, GoldDrop, TalentType, SpatialHashGrid, UpgradeReward, Particle } from '../types';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, RARITY_COLORS, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING, TERRAIN_CONFIG, ELEMENT_CONFIG, ULTIMATE_DESCRIPTIONS, DETAIL_COLORS, GOLD_VALUES } from '../constants';
-import { Shield, Zap, Clock, Star, Flame, Bomb, User, Sword, Axe, Crosshair, HelpCircle, PocketKnife, Shovel, Drill, BowArrow, Hand, Footprints, Target, Coins, Wrench, BrickWall } from 'lucide-react';
+import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, Rarity, FloatingText, Terrain, ElementType, Hazard, HazardType, GoldDrop, UpgradeReward, Particle, SpatialHashGrid } from '../types';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, GOLD_VALUES } from '../constants';
+
+// Sub-components
+import { GameHUD } from './GameHUD';
+import { GameTooltip } from './GameTooltip';
+import { UltimateButton } from './Ultimate';
 
 // Systems
-import * as TerrainSystem from '../systems/TerrainSystem';
-import * as PlayerSystem from '../systems/PlayerSystem';
-import * as EnemySystem from '../systems/EnemySystem';
-import * as WeaponSystem from '../systems/WeaponSystem';
-import * as ProjectileSystem from '../systems/ProjectileSystem';
-import * as LootSystem from '../systems/LootSystem';
-import * as HazardSystem from '../systems/HazardSystem';
-import * as TalentSystem from '../systems/TalentSystem';
-import * as UltimateSystem from '../systems/UltimateSystem';
-import * as RenderSystem from '../systems/RenderSystem';
-import * as CameraSystem from '../systems/CameraSystem';
-import * as StageSystem from '../systems/StageSystem';
-import * as FloatingTextSystem from '../systems/FloatingTextSystem';
-import * as ParticleSystem from '../systems/ParticleSystem';
+import * as TerrainSystem from '@/systems/world/Terrain';
+import * as PlayerSystem from '@/systems/entities/Player';
+import * as EnemySystem from '@/systems/entities/Enemy';
+import * as WeaponSystem from '@/systems/combat/Weapon';
+import * as ProjectileSystem from '@/systems/combat/Projectile';
+import * as LootSystem from '@/systems/items/Loot';
+import * as HazardSystem from '@/systems/combat/Hazard';
+import * as TalentSystem from '@/systems/items/Talent';
+import * as UltimateSystem from '@/systems/combat/Ultimate';
+import * as RenderSystem from '@/systems/core/Render';
+import * as CameraSystem from '@/systems/core/Camera';
+import * as StageSystem from '@/systems/core/Stage';
+import * as FloatingTextSystem from '@/systems/ui/FloatingText';
+import * as ParticleSystem from '@/systems/ui/Particle';
+import { AudioSystem } from '@/systems/core/Audio';
 
 // Hooks
 import { useGameInput } from '../hooks/useGameInput';
@@ -63,7 +68,7 @@ const Game: React.FC<GameProps> = ({
   // Game State Refs
   const playerRef = useRef<Player>({
     id: 'player',
-    x: MAP_WIDTH / 2, // Center on Map
+    x: MAP_WIDTH / 2,
     y: MAP_HEIGHT / 2,
     width: 32,
     height: 32,
@@ -74,7 +79,6 @@ const Game: React.FC<GameProps> = ({
     dead: false,
     angle: 0,
     equipment: { 
-      // Initial Basic Sword
       weapon1: {
          id: 'starter_sword',
          name: 'Rusty Sword',
@@ -99,14 +103,14 @@ const Game: React.FC<GameProps> = ({
   const projectilesRef = useRef<Projectile[]>([]);
   const floatingTextsRef = useRef<FloatingText[]>([]);
   const terrainRef = useRef<Terrain[]>([]);
-  const hazardsRef = useRef<Hazard[]>([]); // Hazard System
-  const goldDropsRef = useRef<GoldDrop[]>([]); // Gold Drops
-  const particlesRef = useRef<Particle[]>([]); // Visual Particles
-  const fireDamageAccumulatorRef = useRef<number>(0); // Buffer for fire damage text
+  const hazardsRef = useRef<Hazard[]>([]);
+  const goldDropsRef = useRef<GoldDrop[]>([]);
+  const particlesRef = useRef<Particle[]>([]);
+  const fireDamageAccumulatorRef = useRef<number>(0);
   const stageStartHpRef = useRef<number>(INITIAL_PLAYER_STATS.hp);
   
   // Optimization: Spatial Grid
-  const spatialGridRef = useRef<SpatialHashGrid>(new SpatialHashGrid(150)); // 150px buckets
+  const spatialGridRef = useRef<SpatialHashGrid>(new SpatialHashGrid(150));
 
   const lastTimeRef = useRef<number>(0);
   const spawnTimerRef = useRef<number>(0);
@@ -133,7 +137,7 @@ const Game: React.FC<GameProps> = ({
   const hurtTimerRef = useRef<number>(0); 
   const slowedTimerRef = useRef<number>(0); 
   const speedBoostRef = useRef<number>(0);
-  const omniForceRef = useRef<number>(0); // Replaced critSurge
+  const omniForceRef = useRef<number>(0); 
 
   const [uiState, setUiState] = useState({
     hp: 100,
@@ -151,10 +155,7 @@ const Game: React.FC<GameProps> = ({
     stats: { ...INITIAL_PLAYER_STATS }
   });
   
-  // Removed showStats state, used tooltip instead
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
-  
-  // Detect mobile for UI adjustments
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -165,36 +166,6 @@ const Game: React.FC<GameProps> = ({
       window.addEventListener('resize', checkMobile);
       return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-  // Developer Backdoor: Press 'n' 10 times quickly to skip stage
-  useEffect(() => {
-    let pressCount = 0;
-    let lastTime = 0;
-
-    const handleDevKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'n') {
-        const now = Date.now();
-        if (now - lastTime > 400) { // Reset if more than 400ms between presses
-          pressCount = 1;
-        } else {
-          pressCount++;
-        }
-        lastTime = now;
-
-        if (pressCount >= 10) {
-          // Trigger Stage Clear
-          stageInfoRef.current.stageCleared = true;
-          onStageClearWrapper();
-          pressCount = 0;
-          // Visual feedback for cheat
-          FloatingTextSystem.createFloatingText(floatingTextsRef.current, playerRef.current.x, playerRef.current.y - 50, "DEV SKIP", "#00ff00", true);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleDevKey);
-    return () => window.removeEventListener('keydown', handleDevKey);
-  }, [onStageClear]);
 
   const spawnFloatingText = (x: number, y: number, text: string, color: string, isCrit: boolean = false) => {
     FloatingTextSystem.createFloatingText(floatingTextsRef.current, x, y, text, color, isCrit);
@@ -223,10 +194,15 @@ const Game: React.FC<GameProps> = ({
      onStageClear({ ...p });
   };
 
-  // --- USE INPUT HOOK ---
-  const { keysRef, handleJoystickMove } = useGameInput(onPauseToggle, handleActivateUltimate);
+  // Developer backdoor triggered via hook
+  const handleDevSkip = () => {
+      stageInfoRef.current.stageCleared = true;
+      onStageClearWrapper();
+      FloatingTextSystem.createFloatingText(floatingTextsRef.current, playerRef.current.x, playerRef.current.y - 50, "DEV SKIP", "#00ff00", true);
+  };
 
-  // --- SETUP STAGE ---
+  const { keysRef, handleJoystickMove } = useGameInput(onPauseToggle, handleActivateUltimate, handleDevSkip);
+
   useEffect(() => {
     StageSystem.initializeStage({
         player: playerRef.current,
@@ -252,17 +228,14 @@ const Game: React.FC<GameProps> = ({
         initialGold
     });
 
-    // Track Start HP for durability calculation
     stageStartHpRef.current = playerRef.current.stats.hp;
 
   }, [currentStage, initialGold]); 
 
-  // Re-calculate Stats Logic
   useEffect(() => {
     const p = playerRef.current;
 
     if (upgradeChosen) {
-      // Determine if reward is an Item (has rarity) or StatUpgrade
       const isItem = 'rarity' in upgradeChosen;
       
       if (isItem) {
@@ -278,7 +251,6 @@ const Game: React.FC<GameProps> = ({
                else p.equipment.weapon1 = item; 
            }
         } else {
-           // Armor Logic
            if (item._targetSlot === 'armor1') {
                p.equipment.armor1 = item;
            } else if (item._targetSlot === 'armor2') {
@@ -288,14 +260,11 @@ const Game: React.FC<GameProps> = ({
                else if (!p.equipment.armor2) p.equipment.armor2 = item;
                else p.equipment.armor1 = item;
            }
-
-           // Add immediate shield from new item if applicable
            if (item.stats.shield) {
                p.stats.shield += item.stats.shield;
            }
         }
       } else {
-         // Handle StatUpgrade - Apply to PERMANENT STATS
          const upgrade = upgradeChosen as any; 
          
          if (upgrade.healPercent) {
@@ -304,7 +273,6 @@ const Game: React.FC<GameProps> = ({
              spawnFloatingText(p.x, p.y - 40, `+${Math.round(healAmt)} HP`, '#4ade80');
          } else if (upgrade.stats) {
              Object.entries(upgrade.stats).forEach(([key, val]) => {
-                // Update permanent base stats
                 // @ts-ignore
                 if (p.permanentStats[key] !== undefined) p.permanentStats[key] += (val as number);
              });
@@ -316,23 +284,22 @@ const Game: React.FC<GameProps> = ({
          }
       }
       onUpgradeApplied();
-      
-      // Update Start HP to reflect any healing or max HP changes from upgrade
-      // This ensures we don't penalize durability for the difference between old max and new max, or pre-heal and post-heal
       stageStartHpRef.current = p.stats.hp;
     }
     
-    // Always recalculate effective stats using the new system
     TalentSystem.calculatePlayerStats(p);
 
   }, [upgradeChosen, onUpgradeApplied]);
 
-  // Handle Hazard Creation Wrapper to pass into ProjectileSystem
-  const handleCreateHazard = (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER', element: ElementType = ElementType.NONE, critChance: number = 0) => {
-      HazardSystem.createHazard(hazardsRef.current, x, y, radius, damage, type, source, element, critChance);
+  const handleCreateHazard = (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER', element: ElementType = ElementType.NONE, critChance: number = 0, knockback: number = 0) => {
+      HazardSystem.createHazard(hazardsRef.current, x, y, radius, damage, type, source, element, critChance, knockback);
   };
 
   const handlePlayerHit = (damage: number, ignoreShield = false, silent = false) => {
+      if (invincibilityRef.current <= 0 && hurtTimerRef.current <= 0) {
+          AudioSystem.playDamage();
+      }
+
       PlayerSystem.handlePlayerDamage(
           playerRef.current,
           damage,
@@ -342,7 +309,7 @@ const Game: React.FC<GameProps> = ({
               slowed: slowedTimerRef
           },
           floatingTextsRef.current,
-          spawnSplatter, // Pass splatter callback
+          spawnSplatter,
           ignoreShield,
           silent
       );
@@ -352,8 +319,6 @@ const Game: React.FC<GameProps> = ({
     const p = playerRef.current;
     if (p.dead || stageInfoRef.current.stageCleared) return;
 
-    // --- SPATIAL GRID UPDATE ---
-    // Clear and rebuild grid every frame for accurate collision detection
     spatialGridRef.current.clear();
     
     p.ultimateCharge = Math.min(100, p.ultimateCharge + dt * p.stats.ultChargeRate);
@@ -374,7 +339,6 @@ const Game: React.FC<GameProps> = ({
     FloatingTextSystem.updateFloatingTexts(floatingTextsRef.current);
     ParticleSystem.updateParticles(particlesRef.current);
     
-    // --- UPDATES VIA SYSTEMS ---
     LootSystem.updateLoot(p, goldDropsRef.current, spawnFloatingText);
     
     HazardSystem.updateHazards(
@@ -389,7 +353,6 @@ const Game: React.FC<GameProps> = ({
         spawnSplatter
     );
 
-    // Spawning logic (Paused during time stop)
     if (timeStopRef.current <= 0) {
       spawnTimerRef.current--;
       if (spawnTimerRef.current <= 0) {
@@ -399,7 +362,6 @@ const Game: React.FC<GameProps> = ({
       }
     }
 
-    // Enemy Updates (Grid population happens here even during Time Stop)
     EnemySystem.updateEnemies(
         enemiesRef.current, 
         p, 
@@ -407,7 +369,7 @@ const Game: React.FC<GameProps> = ({
         projectilesRef.current, 
         timeStopRef.current > 0, 
         spawnFloatingText,
-        spawnSplatter, // Pass splatter callback
+        spawnSplatter, 
         handlePlayerHit,
         handleCreateHazard, 
         spatialGridRef.current 
@@ -422,11 +384,11 @@ const Game: React.FC<GameProps> = ({
         p, 
         terrainRef.current, 
         spawnFloatingText,
-        spawnSplatter, // Pass splatter callback
+        spawnSplatter,
         handlePlayerHit,
         handleCreateHazard,
-        omniForceRef.current > 0, // Is OMNI FORCE active
-        spatialGridRef.current // Pass Grid for fast queries
+        omniForceRef.current > 0,
+        spatialGridRef.current 
     );
 
     for (let i = enemiesRef.current.length - 1; i >= 0; i--) {
@@ -434,15 +396,12 @@ const Game: React.FC<GameProps> = ({
        
        if (enemy.stats.hp <= 0) {
            if (!enemy.dead) {
-               // Start Death Animation
                enemy.dead = true;
-               enemy.deathTimer = 25; // 25 frames animation
-               
-               // GOLD REWARD LOGIC (Trigger immediately on kill)
+               enemy.deathTimer = 25; 
+               AudioSystem.playKill();
+
                let goldReward = 0;
                if (enemy.type === 'BOSS') {
-                   // Check if any other bosses exist (Handling Split/Clone logic)
-                   // Exclude current enemy as it is now marked dead
                    const remainingBosses = enemiesRef.current.filter(e => e.type === 'BOSS' && !e.dead && e.id !== enemy.id).length;
                    
                    if (remainingBosses === 0) {
@@ -451,7 +410,6 @@ const Game: React.FC<GameProps> = ({
                        onStageClearWrapper();
                        if (p.gold) p.gold += goldReward; else p.gold = goldReward;
                    } else {
-                       // Boss killed but clone remains, give partial reward or none?
                        goldReward = GOLD_VALUES.BOSS_KILL / 2;
                        if (p.gold) p.gold += goldReward; else p.gold = goldReward;
                    }
@@ -468,7 +426,6 @@ const Game: React.FC<GameProps> = ({
            }
        }
        
-       // Handle Death Animation
        if (enemy.dead) {
            enemy.deathTimer = (enemy.deathTimer || 0) - 1;
            if (enemy.deathTimer <= 0) {
@@ -487,9 +444,6 @@ const Game: React.FC<GameProps> = ({
       onGameOver(p.level);
     }
 
-    // --- UI THROTTLING ---
-    // Only update React state every 6 frames (~10fps update rate)
-    // This significantly reduces main thread load from React reconciliation
     uiUpdateFrameRef.current++;
     if (uiUpdateFrameRef.current % 6 === 0) {
         const activeUlts: UltimateType[] = [];
@@ -579,11 +533,8 @@ const Game: React.FC<GameProps> = ({
   
   const handleClickItem = (item: Item | null, e: React.MouseEvent) => {
       if (!isMobile || !item) return;
-      
-      e.stopPropagation(); // Prevent background click from closing tooltip immediately
-
+      e.stopPropagation(); 
       const rect = e.currentTarget.getBoundingClientRect();
-
       if (tooltip && tooltip.type === 'ITEM' && tooltip.content === item) {
           setTooltip(null);
       } else {
@@ -598,9 +549,7 @@ const Game: React.FC<GameProps> = ({
 
   const handleClickStats = (e: React.MouseEvent) => {
       if (!isMobile) return;
-      
-      e.stopPropagation(); // Prevent background click
-
+      e.stopPropagation();
       const rect = e.currentTarget.getBoundingClientRect();
       if (tooltip && tooltip.type === 'STATS') {
           setTooltip(null);
@@ -620,7 +569,6 @@ const Game: React.FC<GameProps> = ({
     const ults: UltimateType[] = [];
     if (p.equipment.weapon1?.ultimate) ults.push(p.equipment.weapon1.ultimate);
     if (p.equipment.weapon2?.ultimate) ults.push(p.equipment.weapon2.ultimate);
-    // Armor talent does not contribute to list
     const uniqueUlts = Array.from(new Set(ults));
     if (uniqueUlts.length === 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -634,19 +582,14 @@ const Game: React.FC<GameProps> = ({
 
   const handleClickUlt = (e: React.MouseEvent) => {
       if (!isMobile) return;
-      
-      e.stopPropagation(); // Prevent background click
-
+      e.stopPropagation();
       const p = playerRef.current;
       const ults: UltimateType[] = [];
       if (p.equipment.weapon1?.ultimate) ults.push(p.equipment.weapon1.ultimate);
       if (p.equipment.weapon2?.ultimate) ults.push(p.equipment.weapon2.ultimate);
-      
       const uniqueUlts = Array.from(new Set(ults));
       if (uniqueUlts.length === 0) return;
-      
       const rect = e.currentTarget.getBoundingClientRect();
-      
       if (tooltip && tooltip.type === 'ULTIMATE') {
           setTooltip(null);
       } else {
@@ -659,248 +602,6 @@ const Game: React.FC<GameProps> = ({
       }
   };
 
-  const renderIconForSlot = (item: Item | null, fallbackIcon: React.ReactNode) => {
-      if (!item) return fallbackIcon;
-      const size = isMobile ? 16 : 20;
-      if (item.type === 'ARMOR') {
-          switch(item.subtype) {
-              case 'GLOVES': return <Hand size={size} />;
-              case 'BOOTS': return <Footprints size={size} />;
-              case 'SHIELD': 
-              default: return <Shield size={size} />;
-          }
-      }
-      switch(item.subtype) {
-          case 'AXE': return <Axe size={size} />;
-          case 'DAGGER': return <PocketKnife size={size} className="rotate-45" />;
-          case 'PISTOL': return <Drill size={size} />;
-          case 'SPEAR': return <Shovel size={size} className="-rotate-45" />;
-          case 'SNIPER': return <Crosshair size={size} className="text-red-400" />;
-          case 'BOW': return <BowArrow size={size} className="rotate-45" />; 
-          case 'BOMB': return <Bomb size={size} className="text-gray-400" />;
-          case 'SWORD': return <Sword size={size} />;
-          default: return <HelpCircle size={size} />;
-      }
-  };
-
-  const renderWeaponSlot = (item: Item | null, defaultIcon: React.ReactNode) => {
-      return (
-         <div 
-            className="flex flex-col items-center cursor-help"
-            onMouseEnter={(e) => handleMouseEnterItem(item, e)}
-            onMouseLeave={() => !isMobile && setTooltip(null)}
-            onClick={(e) => handleClickItem(item, e)}
-         >
-             <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-gray-800 border-2 rounded flex items-center justify-center relative transition-colors hover:bg-gray-700
-                ${item ? 'border-'+RARITY_COLORS[item.rarity].replace('#','') : 'border-gray-600'}`}
-                style={{ borderColor: item ? RARITY_COLORS[item.rarity] : undefined }}
-             >
-                <div className="text-white drop-shadow-md z-10">
-                    {renderIconForSlot(item, defaultIcon)}
-                </div>
-
-                {item && (
-                     <div className="absolute bottom-[2px] left-[2px] right-[2px] h-[3px] bg-gray-900 rounded-full overflow-hidden border border-gray-600/50">
-                         <div 
-                            className="h-full transition-all duration-300"
-                            style={{ 
-                                width: `${Math.max(0, item.durability)}%`,
-                                backgroundColor: item.durability < 25 ? '#ef4444' : item.durability < 50 ? '#eab308' : '#22c55e'
-                            }} 
-                         />
-                     </div>
-                 )}
-
-                {item && item.element && item.element !== ElementType.NONE && (
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-black flex items-center justify-center text-[8px] z-10"
-                         style={{ backgroundColor: ELEMENT_CONFIG[item.element].color }}
-                    >
-                       {ELEMENT_CONFIG[item.element].icon}
-                    </div>
-                 )}
-                 {item && item.durability < 30 && (
-                     <div className="absolute -top-1 -right-1 z-10">
-                        <Wrench size={10} className="text-red-500 animate-pulse" fill="currentColor" />
-                     </div>
-                 )}
-             </div>
-         </div>
-      );
-  };
-
-  const renderUltimateIcon = (type?: UltimateType, customSize?: number) => {
-      const size = customSize || (isMobile ? 12 : 16);
-      const c = (color: string) => customSize ? '' : color;
-
-      switch(type) {
-          case UltimateType.SHIELD: return <Shield size={size} className={c("text-cyan-400")} fill="currentColor" />;
-          case UltimateType.AOE_BLAST: return <Bomb size={size} className={c("text-orange-400")} fill="currentColor" />;
-          case UltimateType.TIME_STOP: return <Clock size={size} className={c("text-purple-400")} />;
-          case UltimateType.INVINCIBILITY: return <Star size={size} className={c("text-yellow-400")} fill="currentColor" />;
-          case UltimateType.SPEED_BOOST: return <Zap size={size} className={c("text-blue-400")} fill="currentColor" />;
-          case UltimateType.OMNI_FORCE: return <Flame size={size} className={c("text-red-500")} fill="currentColor" />;
-          case UltimateType.BLOCK: return <BrickWall size={size} className={c("text-stone-400")} fill="currentColor" />;
-          default: return <Star size={size} className={c("text-gray-400")} />;
-      }
-  };
-  
-  // New Unified Ultimate Button
-  const renderUltimateButton = (isForMobile: boolean) => {
-      if (!uiState.hasUltimate) return null;
-      const isReady = uiState.ult >= 100;
-      
-      return (
-        <button 
-            className={`absolute z-50 flex items-center justify-center gap-2 rounded-xl border-2 backdrop-blur-sm transition-all active:scale-95 overflow-hidden
-                ${isForMobile 
-                    ? 'bottom-8 right-8 h-16 min-w-[5rem] px-3' 
-                    : 'bottom-6 left-1/2 -translate-x-1/2 h-10 min-w-[8rem] px-4'}
-                ${isReady 
-                    ? 'bg-yellow-500/40 border-yellow-200/50 shadow-[0_0_15px_rgba(250,204,21,0.3)] animate-pulse cursor-pointer hover:bg-yellow-500/60' 
-                    : 'bg-gray-900/20 border-gray-600/30 cursor-not-allowed opacity-60'}`}
-             onClick={(e) => {
-                 if (isForMobile) return; 
-                 handleActivateUltimate();
-                 e.currentTarget.blur();
-             }}
-             onTouchStart={(e) => {
-                 if (!isForMobile) return;
-                 e.preventDefault();
-                 handleActivateUltimate();
-             }}
-        >
-             {/* Progress Overlay */}
-             {!isReady && (
-                 <div className="absolute bottom-0 left-0 right-0 bg-black/30 transition-all duration-300 pointer-events-none"
-                      style={{ height: `${100 - uiState.ult}%` }} />
-             )}
-             
-             {/* Icons */}
-             <div className={`flex items-center gap-2 relative z-10 ${isReady ? 'text-yellow-100 drop-shadow-sm' : 'text-gray-400'}`}>
-                 {uiState.activeUltimates.map((u, i) => (
-                    <div key={i}>{renderUltimateIcon(u, isForMobile ? 24 : 18)}</div>
-                 ))}
-             </div>
-             
-             {/* Label */}
-             <div className={`font-pixel font-bold relative z-10 ${isReady ? 'text-yellow-100' : 'text-gray-400'} text-[10px]`}>
-                 {isReady ? (isForMobile ? 'ULT' : 'SPACE') : `${Math.floor(uiState.ult)}%`}
-             </div>
-        </button>
-      );
-  };
-
-  const renderTooltip = () => {
-      if (!tooltip) return null;
-      return (
-          <div 
-            className="fixed z-[60] bg-gray-900/95 border border-gray-500 rounded-lg p-3 shadow-xl text-xs w-64 animate-in fade-in duration-200"
-            style={{ top: tooltip.y, left: tooltip.x }}
-            onClick={(e) => {
-                e.stopPropagation(); // Clicking tooltip itself shouldn't trigger background click (redundant but safe)
-                setTooltip(null);
-            }} 
-          >
-              {tooltip.type === 'ITEM' ? (
-                  (() => {
-                    const item = tooltip.content as Item;
-                    // Durability Color
-                    let durColor = 'bg-green-500';
-                    if (item.durability < 25) durColor = 'bg-red-500';
-                    else if (item.durability < 50) durColor = 'bg-yellow-500';
-
-                    return (
-                        <>
-                            <div className="flex justify-between items-start border-b border-gray-700 pb-2 mb-2">
-                                <div>
-                                    <div className="font-bold text-sm" style={{ color: RARITY_COLORS[item.rarity] }}>{item.name}</div>
-                                    <div className="text-gray-400 text-[10px] uppercase">{item.rarity} {item.subtype || 'SHIELD'} - LVL {item.level}</div>
-                                </div>
-                                {item.element && item.element !== ElementType.NONE && (
-                                    <div className="text-lg" title={ELEMENT_CONFIG[item.element].label}>{ELEMENT_CONFIG[item.element].icon}</div>
-                                )}
-                            </div>
-                            
-                            <div className="mb-2">
-                                <div className="flex justify-between text-[10px] text-gray-400 mb-0.5">
-                                    <span>Durability</span>
-                                    <span>{Math.floor(item.durability)}%</span>
-                                </div>
-                                <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                                    <div className={`h-full ${durColor} transition-all`} style={{ width: `${item.durability}%` }} />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1 mb-2">
-                                {item.stats.attack && <div className="flex justify-between"><span className="text-gray-400">Attack</span> <span className="text-green-400">{item.stats.attack}</span></div>}
-                                {item.stats.defense && <div className="flex justify-between"><span className="text-gray-400">Defense</span> <span className="text-blue-400">{item.stats.defense}</span></div>}
-                                {item.stats.attackSpeed && <div className="flex justify-between"><span className="text-gray-400">Speed</span> <span className="text-yellow-400">{item.stats.attackSpeed.toFixed(2)}</span></div>}
-                                {item.stats.armorOnHit !== undefined && <div className="flex justify-between"><span className="text-gray-400">Armor/Hit</span> <span className="text-cyan-400">{item.stats.armorOnHit.toFixed(2)}</span></div>}
-                                {item.stats.range && <div className="flex justify-between"><span className="text-gray-400">Range</span> <span className="text-purple-400">{item.stats.range}</span></div>}
-                                {item.stats.knockback !== undefined && <div className="flex justify-between"><span className="text-gray-400">Knockback</span> <span className="text-orange-400">{item.stats.knockback}</span></div>}
-                                {item.stats.critChance && <div className="flex justify-between"><span className="text-gray-400">Crit</span> <span className="text-pink-400">{(item.stats.critChance*100).toFixed(0)}%</span></div>}
-                                {item.stats.shield && <div className="flex justify-between"><span className="text-gray-400">Init Shield</span> <span className="text-cyan-400">+{item.stats.shield}</span></div>}
-                                {item.stats.moveSpeed && <div className="flex justify-between"><span className="text-gray-400">Move Spd</span> <span className="text-yellow-400">+{item.stats.moveSpeed.toFixed(1)}</span></div>}
-                                {item.stats.ultChargeRate && <div className="flex justify-between"><span className="text-gray-400">Ult Charge</span> <span className="text-yellow-400">+{item.stats.ultChargeRate.toFixed(1)}/s</span></div>}
-                                {item.stats.blockChance !== undefined && <div className="flex justify-between"><span className="text-gray-400">Block Chance</span> <span className="text-green-400">+{Math.round(item.stats.blockChance * 100)}%</span></div>}
-                                {item.stats.dodgeChance !== undefined && item.stats.dodgeChance > 0 && <div className="flex justify-between"><span className="text-gray-400">Dodge Chance</span> <span className="text-green-400">+{Math.round(item.stats.dodgeChance * 100)}%</span></div>}
-                            </div>
-                            {item.ultimate && (
-                                <div className="bg-gray-800 p-2 rounded text-[10px] border border-gray-700">
-                                    <span className="text-yellow-400 font-bold block mb-1">ULTIMATE: {item.ultimateName}</span>
-                                    <span className="text-gray-300">{ULTIMATE_DESCRIPTIONS[item.ultimate]}</span>
-                                </div>
-                            )}
-                            {item.talent && (
-                                <div className="bg-blue-900/30 p-2 rounded text-[10px] border border-blue-700/50 mt-1">
-                                    <span className="text-blue-400 font-bold block mb-1">TALENT: {item.talent.type}</span>
-                                    <span className="text-gray-300">{item.talent.description}</span>
-                                </div>
-                            )}
-                        </>
-                    )
-                  })()
-              ) : tooltip.type === 'STATS' ? (
-                // Character Stats Tooltip Content
-                <>
-                     <h4 className="text-xs text-gray-400 font-bold uppercase mb-2 border-b border-gray-700 pb-1">Character Stats</h4>
-                     <div className="space-y-1 text-xs">
-                         <div className="flex justify-between"><span className="text-gray-400">Attack</span><span className="text-green-400 font-mono">{uiState.stats.attack}</span></div>
-                         <div className="flex justify-between"><span className="text-gray-400">Defense</span><span className="text-blue-400 font-mono">{uiState.stats.defense.toFixed(1)}</span></div>
-                         <div className="flex justify-between"><span className="text-gray-400">Move Spd</span><span className="text-yellow-400 font-mono">{uiState.stats.moveSpeed.toFixed(1)}</span></div>
-                         <div className="flex justify-between"><span className="text-gray-400">Crit Rate</span><span className="text-pink-400 font-mono">{(uiState.stats.critChance * 100).toFixed(0)}%</span></div>
-                         <div className="flex justify-between"><span className="text-gray-400">Range</span><span className="text-purple-400 font-mono">{uiState.stats.range}</span></div>
-                         <div className="flex justify-between"><span className="text-gray-400">Knockback</span><span className="text-orange-400 font-mono">{uiState.stats.knockback}</span></div>
-                         <div className="flex justify-between"><span className="text-gray-400">Armor/Hit</span><span className="text-cyan-400 font-mono">{uiState.stats.armorOnHit.toFixed(2)}</span></div>
-                         <div className="flex justify-between"><span className="text-gray-400">Block Chance</span><span className="text-green-400 font-mono">{(uiState.stats.blockChance * 100).toFixed(0)}%</span></div>
-                         <div className="flex justify-between"><span className="text-gray-400">Dodge Chance</span><span className="text-green-400 font-mono">{(uiState.stats.dodgeChance * 100).toFixed(0)}%</span></div>
-                         <div className="flex justify-between"><span className="text-gray-400">Ult Charge</span><span className="text-yellow-400 font-mono">{uiState.stats.ultChargeRate.toFixed(1)}/s</span></div>
-                     </div>
-                </>
-              ) : (
-                  <>
-                    <div className="font-bold text-sm text-yellow-400 border-b border-gray-700 pb-2 mb-2">Active Ultimate Skills</div>
-                    <div className="space-y-3">
-                        {(tooltip.content as UltimateType[]).map((ult, idx) => (
-                            <div key={idx} className="flex gap-2">
-                                <div className="mt-0.5">{renderUltimateIcon(ult)}</div>
-                                <div>
-                                    <div className="font-bold text-white">{ult.replace(/_/g, ' ')}</div>
-                                    <div className="text-gray-400">{ULTIMATE_DESCRIPTIONS[ult]}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                  </>
-              )}
-          </div>
-      )
-  };
-
-  const effectiveMax = Math.max(uiState.maxHp, uiState.hp + uiState.shield);
-  const hpPercent = (uiState.hp / effectiveMax) * 100;
-  const shieldPercent = (uiState.shield / effectiveMax) * 100;
-
   return (
     <div 
         className="relative w-full h-full shadow-2xl rounded-xl overflow-hidden border-4 border-gray-700 bg-black touch-none mx-auto"
@@ -910,90 +611,42 @@ const Game: React.FC<GameProps> = ({
       <img id="player-asset-img" src={assets.playerSprite || ''} className="hidden" alt="" />
       <img id="enemy-asset-img" src={assets.enemySprite || ''} className="hidden" alt="" />
 
-      {/* HUD Container */}
-      <div className="absolute top-0 left-0 w-full p-2 md:p-4 pointer-events-none flex justify-between items-start">
-         <div className="flex flex-col gap-2 pointer-events-auto">
-            {/* HP Bar Row with Gold */}
-            <div className="flex items-center gap-2">
-                <div className={`${isMobile ? 'w-40 h-4' : 'w-64 h-6'} bg-gray-900 border-2 border-gray-600 rounded-full relative overflow-hidden flex`}>
-                    <div className="h-full bg-red-600 transition-all duration-300" style={{ width: `${hpPercent}%` }} />
-                    <div className="h-full bg-gray-400 transition-all duration-300" style={{ width: `${shieldPercent}%` }} />
-                    <span className={`absolute inset-0 flex items-center justify-center ${isMobile ? 'text-[10px]' : 'text-xs'} font-bold text-white drop-shadow-md z-10`}>
-                        {Math.ceil(uiState.hp)} 
-                        {uiState.shield > 0 && <span className="text-gray-300 ml-1"> (+{Math.ceil(uiState.shield)})</span>}
-                        <span className="mx-1">/</span>
-                        {Math.ceil(uiState.maxHp)}
-                    </span>
-                </div>
-
-                {/* Gold Counter Moved Here */}
-                <div className="flex items-center gap-1.5 bg-gray-900/80 border border-yellow-600/50 rounded-full px-3 py-0.5 w-fit h-full">
-                    <Coins size={isMobile ? 12 : 14} className="text-yellow-400" />
-                    <span className={`text-yellow-100 font-bold ${isMobile ? 'text-xs' : 'text-sm'}`}>{Math.floor(uiState.gold)}</span>
-                </div>
-            </div>
-            
-            {/* Ultimate Bar - Still shows small status but big button is main interaction now */}
-            {uiState.hasUltimate && (
-              <div className="flex items-center gap-2 cursor-help" onMouseEnter={handleMouseEnterUlt} onMouseLeave={() => !isMobile && setTooltip(null)} onClick={handleClickUlt}>
-                  <div className={`flex gap-1 bg-gray-900 border border-gray-600 rounded px-1 ${isMobile ? 'h-4' : 'h-6'} items-center`}>
-                     {uiState.activeUltimates.map((u, i) => (
-                        <div key={i} className={`${uiState.ult >= 100 ? 'opacity-100' : 'opacity-40 grayscale'} transition-all`}>
-                            {renderUltimateIcon(u)}
-                        </div>
-                     ))}
-                  </div>
-                  <div className={`${isMobile ? 'w-32 h-3' : 'w-56 h-4'} bg-gray-900 border border-gray-600 rounded-full relative overflow-hidden animate-in slide-in-from-left duration-300`}>
-                      <div className={`h-full transition-all duration-300 ${uiState.ult >= 100 ? 'bg-yellow-300 animate-pulse shadow-[0_0_10px_#facc15]' : 'bg-yellow-500'}`} style={{ width: `${Math.floor(uiState.ult)}%` }} />
-                      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-black/70">ULTIMATE {Math.floor(uiState.ult)}%</span>
-                  </div>
-              </div>
-            )}
-
-            {/* Equipment Slots */}
-            <div className="flex items-center gap-1 md:gap-2 mt-1">
-                 <div 
-                    className="relative cursor-help"
-                    onMouseEnter={handleMouseEnterStats}
-                    onMouseLeave={() => !isMobile && setTooltip(null)}
-                    onClick={handleClickStats}
-                 >
-                     <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-gray-800 border-2 border-gray-600 rounded-full flex items-center justify-center hover:bg-gray-700 hover:border-white transition-colors`}>
-                         <User size={isMobile ? 16 : 20} className="text-white" />
-                     </div>
-                 </div>
-
-                 {renderWeaponSlot(uiState.weapon1, <Sword size={isMobile ? 16 : 20} className="text-gray-600" />)}
-                 {renderWeaponSlot(uiState.weapon2, <Sword size={isMobile ? 16 : 20} className="text-gray-600" />)}
-                 {renderWeaponSlot(uiState.armor1, <Shield size={isMobile ? 16 : 20} className="text-gray-600" />)}
-                 {renderWeaponSlot(uiState.armor2, <Shield size={isMobile ? 16 : 20} className="text-gray-600" />)}
-            </div>
-         </div>
-
-         {/* Stage Info */}
-         <div className="flex flex-col items-center absolute left-1/2 -translate-x-1/2 top-4">
-             <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-pixel text-white drop-shadow-lg whitespace-nowrap`}>
-                {stageInfoRef.current.isBossStage ? <span className="text-red-500 animate-pulse">BOSS FIGHT</span> : `STAGE ${currentStage}`}
-             </h2>
-             {!stageInfoRef.current.isBossStage && (
-                 <div className="text-red-400 font-bold text-xs md:text-lg mt-1 animate-pulse">
-                    ENEMIES: {uiState.enemiesLeft}
-                 </div>
-             )}
-         </div>
-         <div className="w-10"></div> 
-      </div>
+      <GameHUD 
+          uiState={uiState}
+          currentStage={currentStage}
+          isBossStage={stageInfoRef.current.isBossStage}
+          isMobile={isMobile}
+          onMouseEnterItem={handleMouseEnterItem}
+          onMouseLeaveItem={() => !isMobile && setTooltip(null)}
+          onClickItem={handleClickItem}
+          onMouseEnterStats={handleMouseEnterStats}
+          onClickStats={handleClickStats}
+          onMouseEnterUlt={handleMouseEnterUlt}
+          onClickUlt={handleClickUlt}
+      />
       
-      {renderTooltip()}
+      <GameTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
       
-      {/* PC Ultimate Button */}
-      {!isMobile && !isPaused && renderUltimateButton(false)}
+      {!isMobile && !isPaused && (
+          <UltimateButton 
+              hasUltimate={uiState.hasUltimate}
+              ult={uiState.ult}
+              activeUltimates={uiState.activeUltimates}
+              isMobile={false}
+              onActivate={handleActivateUltimate}
+          />
+      )}
 
-      {/* Mobile Controls Overlay */}
       {isMobile && !isPaused && (
           <>
             <VirtualJoystick onMove={handleJoystickMove} forceLandscape={isPortrait} />
-            {renderUltimateButton(true)}
+            <UltimateButton 
+                hasUltimate={uiState.hasUltimate}
+                ult={uiState.ult}
+                activeUltimates={uiState.activeUltimates}
+                isMobile={true}
+                onActivate={handleActivateUltimate}
+            />
           </>
       )}
 

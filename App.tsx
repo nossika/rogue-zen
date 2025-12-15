@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import Game from './components/Game';
 import LevelUpModal from './components/LevelUpModal';
-import { Player, Item, Stats, GameAssets, ElementType, UpgradeReward } from './types';
+import { Player, UpgradeReward, GameAssets } from './types';
 import { Play, Pause, Skull, RotateCcw, HelpCircle, X, Keyboard, Swords, ArrowRight, Home } from 'lucide-react';
 import { DEFAULT_PLAYER_SPRITE, DEFAULT_ENEMY_SPRITE } from './defaultAssets';
-import { ELEMENT_CONFIG } from './constants';
+import { AudioSystem } from '@/systems/core/Audio';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<'MENU' | 'PLAYING' | 'PAUSED' | 'STAGE_CLEAR' | 'GAME_OVER'>('MENU');
@@ -36,9 +36,23 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Audio State Management
+  useEffect(() => {
+      if (gameState === 'PLAYING') {
+          AudioSystem.startMusic();
+      } else if (gameState === 'MENU' || gameState === 'GAME_OVER') {
+          AudioSystem.stopMusic();
+      }
+      // Keep music playing during Pause/Stage Clear, maybe lower volume or just keep it ambient
+  }, [gameState]);
+
   const isPortrait = dimensions.width < dimensions.height;
 
   const startGame = () => {
+    // Initialize Audio Context on user interaction
+    AudioSystem.init();
+    AudioSystem.startMusic();
+
     setGameState('PLAYING');
     setUpgradeChosen(null);
     setCurrentStage(1);
@@ -56,6 +70,7 @@ const App: React.FC = () => {
     setPlayerSnapshot(playerData);
     setPersistentGold(playerData.gold); // Sync gold from game state
     setGameState('STAGE_CLEAR');
+    AudioSystem.playStageClear();
   };
 
   const handleUpgradeSelect = (reward: UpgradeReward, remainingGold: number) => {
@@ -63,6 +78,7 @@ const App: React.FC = () => {
     setPersistentGold(remainingGold); // Update gold after potential rerolls
     setCurrentStage(prev => prev + 1);
     setGameState('PLAYING');
+    AudioSystem.playLevelUp();
   };
 
   const toggleHelp = () => {
@@ -186,13 +202,13 @@ const App: React.FC = () => {
                   </button>
                   <button 
                     onClick={() => setShowHelp(true)}
-                    className="px-6 py-3 bg-gray-700 text-white font-bold rounded hover:bg-gray-600 border border-gray-500 flex items-center justify-center gap-2"
+                    className="px-6 py-3 bg-gray-700 text-white font-bold rounded hover:bg-gray-600 flex items-center justify-center gap-2"
                   >
-                    <HelpCircle size={18} /> HELP
+                     <HelpCircle size={18} /> HOW TO PLAY
                   </button>
                   <button 
                     onClick={() => setGameState('MENU')}
-                    className="px-6 py-3 bg-red-600 text-white font-bold rounded hover:bg-red-500 border border-red-400 flex items-center justify-center gap-2"
+                    className="px-6 py-3 bg-red-900/50 text-red-200 font-bold rounded hover:bg-red-800/50 flex items-center justify-center gap-2 border border-red-800/50"
                   >
                     <Home size={18} /> MAIN MENU
                   </button>
@@ -201,162 +217,110 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {showHelp && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-200 p-4">
-              {/* Use max-h-[90dvh] for mobile safety */}
-              <div className="bg-gray-900 border-2 border-purple-500 rounded-2xl p-4 md:p-8 max-w-4xl w-full relative shadow-2xl max-h-[90dvh] overflow-y-auto custom-scrollbar">
-                  <button 
-                      onClick={() => setShowHelp(false)}
-                      className="absolute top-4 right-4 text-gray-400 hover:text-white"
-                  >
-                      <X size={32} />
-                  </button>
-                  
-                  <h2 className="text-2xl md:text-3xl font-pixel text-center text-purple-400 mb-6 md:mb-8 underline decoration-purple-500/30 underline-offset-8">GAME GUIDE</h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
-                      {/* Controls */}
-                      <div className="bg-gray-800/50 p-4 md:p-6 rounded-xl border border-gray-700">
-                          <h3 className="text-lg md:text-xl font-bold text-white mb-4 flex items-center gap-2">
-                              <Keyboard className="text-yellow-400" /> Controls
-                          </h3>
-                          <ul className="space-y-4 text-gray-300 text-sm md:text-base">
-                              <li className="flex items-center justify-between">
-                                  <span>Move</span>
-                                  <div className="flex items-center gap-1">
-                                      <span className="bg-gray-700 px-2 py-1 rounded border border-gray-600 font-mono text-xs md:text-sm">WASD</span>
-                                      <span className="text-gray-500 text-xs">or Joystick</span>
-                                  </div>
-                              </li>
-                              <li className="flex items-center justify-between">
-                                  <span>Ultimate Skill</span>
-                                  <span className="bg-gray-700 px-3 py-1 rounded border border-gray-600 font-mono text-xs md:text-sm">SPACE / Btn</span>
-                              </li>
-                              <li className="flex items-center justify-between">
-                                  <span>Pause / Back</span>
-                                  <span className="bg-gray-700 px-3 py-1 rounded border border-gray-600 font-mono text-xs md:text-sm">ESC</span>
-                              </li>
-                          </ul>
-                      </div>
-
-                      {/* Gameplay */}
-                      <div className="bg-gray-800/50 p-4 md:p-6 rounded-xl border border-gray-700">
-                          <h3 className="text-lg md:text-xl font-bold text-white mb-4 flex items-center gap-2">
-                              <Swords className="text-red-400" /> Mechanics
-                          </h3>
-                          <ul className="space-y-2 text-gray-300 text-xs md:text-sm list-disc list-inside">
-                              <li>Weapons auto-fire when enemies are in range.</li>
-                              <li>Collect <strong>Gold</strong> to reroll rewards.</li>
-                              <li>Defeat Bosses every 5 stages.</li>
-                              <li>Collect <strong>Armor</strong> to gain passive stats and Shields.</li>
-                              <li>Charge your <strong>Ultimate</strong> by dealing and taking damage.</li>
-                          </ul>
-                      </div>
-                  </div>
-
-                  {/* Elemental System Circular */}
-                  <div className="mt-8 bg-gray-800/50 p-6 rounded-xl border border-gray-700">
-                      <h3 className="text-xl font-bold text-white mb-6 text-center">Elemental Mastery</h3>
-                      
-                      <div className="relative w-64 h-64 mx-auto scale-75 md:scale-100 origin-center">
-                          {/* Central Decoration */}
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <div className="text-center opacity-20 text-gray-400">
-                                  <Swords size={48} className="mx-auto mb-1" />
-                                  <span className="text-[10px] font-bold tracking-widest">CYCLE</span>
-                              </div>
-                          </div>
-
-                          {/* WATER (Top) */}
-                          <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center transform -translate-y-2">
-                              <div className="w-12 h-12 rounded-full border-2 bg-gray-900 flex items-center justify-center text-xl shadow-[0_0_10px_currentColor] z-10"
-                                    style={{ borderColor: ELEMENT_CONFIG.WATER.color, color: ELEMENT_CONFIG.WATER.color }}>
-                                  {ELEMENT_CONFIG.WATER.icon}
-                              </div>
-                              <span className="text-[10px] font-bold mt-1" style={{ color: ELEMENT_CONFIG.WATER.color }}>WATER</span>
-                          </div>
-
-                          {/* FIRE (Right) */}
-                          <div className="absolute top-1/2 right-0 -translate-y-1/2 flex flex-col items-center transform translate-x-2">
-                              <div className="w-12 h-12 rounded-full border-2 bg-gray-900 flex items-center justify-center text-xl shadow-[0_0_10px_currentColor] z-10"
-                                    style={{ borderColor: ELEMENT_CONFIG.FIRE.color, color: ELEMENT_CONFIG.FIRE.color }}>
-                                  {ELEMENT_CONFIG.FIRE.icon}
-                              </div>
-                              <span className="text-[10px] font-bold mt-1" style={{ color: ELEMENT_CONFIG.FIRE.color }}>FIRE</span>
-                          </div>
-
-                          {/* GRASS (Bottom) */}
-                          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center transform translate-y-2">
-                              <span className="text-[10px] font-bold mb-1" style={{ color: ELEMENT_CONFIG.GRASS.color }}>GRASS</span>
-                              <div className="w-12 h-12 rounded-full border-2 bg-gray-900 flex items-center justify-center text-xl shadow-[0_0_10px_currentColor] z-10"
-                                    style={{ borderColor: ELEMENT_CONFIG.GRASS.color, color: ELEMENT_CONFIG.GRASS.color }}>
-                                  {ELEMENT_CONFIG.GRASS.icon}
-                              </div>
-                          </div>
-
-                          {/* EARTH (Left) */}
-                          <div className="absolute top-1/2 left-0 -translate-y-1/2 flex flex-col items-center transform -translate-x-2">
-                              <div className="w-12 h-12 rounded-full border-2 bg-gray-900 flex items-center justify-center text-xl shadow-[0_0_10px_currentColor] z-10"
-                                    style={{ borderColor: ELEMENT_CONFIG.EARTH.color, color: ELEMENT_CONFIG.EARTH.color }}>
-                                  {ELEMENT_CONFIG.EARTH.icon}
-                              </div>
-                              <span className="text-[10px] font-bold mt-1" style={{ color: ELEMENT_CONFIG.EARTH.color }}>EARTH</span>
-                          </div>
-
-                          {/* Arrows */}
-                          {/* Water -> Fire (Top Right quadrant) */}
-                          <div className="absolute top-1/4 right-1/4 translate-x-2 -translate-y-2 text-gray-500">
-                              <ArrowRight size={24} className="rotate-45" />
-                          </div>
-
-                          {/* Fire -> Grass (Bottom Right quadrant) */}
-                          <div className="absolute bottom-1/4 right-1/4 translate-x-2 translate-y-2 text-gray-500">
-                              <ArrowRight size={24} className="rotate-135" />
-                          </div>
-
-                          {/* Grass -> Earth (Bottom Left quadrant) */}
-                          <div className="absolute bottom-1/4 left-1/4 -translate-x-2 translate-y-2 text-gray-500">
-                              <ArrowRight size={24} className="rotate-[225deg]" />
-                          </div>
-
-                          {/* Earth -> Water (Top Left quadrant) */}
-                          <div className="absolute top-1/4 left-1/4 -translate-x-2 -translate-y-2 text-gray-500">
-                              <ArrowRight size={24} className="rotate-[315deg]" />
-                          </div>
-                      </div>
-                      
-                      <div className="text-center mt-6 text-xs md:text-sm text-gray-400">
-                          <span className="text-green-400 font-bold">3.0x Damage</span> vs Weakness &nbsp;|&nbsp; <span className="text-red-400 font-bold">0.5x Damage</span> vs Resistance
-                      </div>
-                  </div>
-
-                  <div className="mt-8 text-center">
-                      <button 
-                          onClick={() => setShowHelp(false)}
-                          className="px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg shadow-lg"
-                      >
-                          GOT IT
-                      </button>
-                  </div>
-              </div>
-          </div>
-        )}
-
         {gameState === 'GAME_OVER' && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-red-900/90 backdrop-blur-md animate-in zoom-in duration-300 p-4">
-            <div className="text-center space-y-6">
-              <Skull className="w-16 h-16 md:w-24 md:h-24 text-black mx-auto" />
-              <h2 className="text-4xl md:text-6xl font-pixel text-white">YOU DIED</h2>
-              <p className="text-xl md:text-2xl text-red-200">Stage Reached: {finalScore}</p>
-              <button 
-                onClick={() => setGameState('MENU')}
-                className="px-8 py-4 bg-black text-red-500 font-bold text-xl rounded border-2 border-red-500 hover:bg-red-500 hover:text-black transition-colors"
-              >
-                MAIN MENU
-              </button>
-            </div>
-          </div>
+           <div className="absolute inset-0 z-50 flex items-center justify-center bg-red-950/80 backdrop-blur-md p-4 animate-in fade-in duration-1000">
+               <div className="text-center max-w-md w-full">
+                   <div className="mb-6 animate-bounce">
+                       <Skull size={80} className="text-red-500 mx-auto drop-shadow-xl" />
+                   </div>
+                   <h2 className="text-5xl md:text-7xl font-pixel text-red-500 drop-shadow-lg mb-2">GAME OVER</h2>
+                   <div className="text-2xl text-white mb-8">
+                       STAGE REATTAINED: <span className="font-bold text-yellow-400">{finalScore}</span>
+                   </div>
+                   
+                   <div className="flex flex-col gap-4">
+                       <button 
+                         onClick={startGame}
+                         className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg shadow-xl hover:shadow-red-500/30 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                       >
+                         <RotateCcw /> RESTART
+                       </button>
+                       <button 
+                         onClick={() => setGameState('MENU')}
+                         className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded-lg transition-colors"
+                       >
+                         MAIN MENU
+                       </button>
+                   </div>
+               </div>
+           </div>
         )}
+
+        {showHelp && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 overflow-y-auto">
+                <div className="bg-gray-900 border border-gray-600 rounded-xl max-w-2xl w-full shadow-2xl relative flex flex-col max-h-full">
+                    <button 
+                        onClick={toggleHelp}
+                        className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                    >
+                        <X size={24} />
+                    </button>
+                    
+                    <div className="p-6 overflow-y-auto custom-scrollbar">
+                        <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-2 border-b border-gray-700 pb-4">
+                            <HelpCircle className="text-yellow-400" /> How to Play
+                        </h2>
+                        
+                        <div className="space-y-6 text-gray-300">
+                            <section>
+                                <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                                    <Keyboard className="text-blue-400" /> Controls
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-gray-800 p-4 rounded-lg">
+                                    <div className="flex justify-between border-b border-gray-700 pb-2">
+                                        <span>Movement</span>
+                                        <span className="font-mono text-white">WASD / Arrows / Joystick</span>
+                                    </div>
+                                    <div className="flex justify-between border-b border-gray-700 pb-2">
+                                        <span>Ultimate Ability</span>
+                                        <span className="font-mono text-white">SPACE / Button</span>
+                                    </div>
+                                    <div className="flex justify-between border-b border-gray-700 pb-2">
+                                        <span>Pause</span>
+                                        <span className="font-mono text-white">ESC</span>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                                    <Swords className="text-red-400" /> Gameplay Mechanics
+                                </h3>
+                                <ul className="list-disc pl-5 space-y-2 text-sm">
+                                    <li><strong className="text-white">Auto-Attack:</strong> Characters attack automatically when enemies are in range.</li>
+                                    <li><strong className="text-white">Elements:</strong> <span className="text-red-400">Fire</span> {'>'} <span className="text-green-400">Grass</span> {'>'} <span className="text-yellow-700">Earth</span> {'>'} <span className="text-blue-400">Water</span> {'>'} <span className="text-red-400">Fire</span>. Advantage deals <strong>3x Damage</strong>!</li>
+                                    <li><strong className="text-white">Gear:</strong> You can hold 2 Weapons and 2 Armor pieces.</li>
+                                    <li><strong className="text-white">Durability:</strong> Items lose durability when you take damage. Broken items are lost!</li>
+                                    <li><strong className="text-white">Ultimates:</strong> Weapons can have Ultimate skills. Charge by dealing/taking damage.</li>
+                                </ul>
+                            </section>
+
+                            <section>
+                                <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                                    <ArrowRight className="text-green-400" /> Tips
+                                </h3>
+                                <ul className="list-disc pl-5 space-y-2 text-sm">
+                                    <li>Prioritize <strong className="text-yellow-400">Gold</strong> to reroll for better gear.</li>
+                                    <li>Match your weapon element to the enemies for massive damage.</li>
+                                    <li>Use <strong className="text-blue-400">Talents</strong> on Armor to buff your weapon type (Sniper/Fighter).</li>
+                                    <li>Watch out for <strong className="text-purple-400">Bosses</strong> every 6 stages!</li>
+                                </ul>
+                            </section>
+                        </div>
+                    </div>
+                    
+                    <div className="p-4 border-t border-gray-700 bg-gray-800 rounded-b-xl flex justify-center">
+                        <button 
+                            onClick={toggleHelp}
+                            className="px-8 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded transition-colors"
+                        >
+                            Got it!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
       </div>
     </div>
   );

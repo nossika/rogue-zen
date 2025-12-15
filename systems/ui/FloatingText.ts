@@ -1,5 +1,5 @@
 
-import { FloatingText } from '../types';
+import { FloatingText } from '../../types';
 
 export const updateFloatingTexts = (texts: FloatingText[]) => {
     for (let i = texts.length - 1; i >= 0; i--) {

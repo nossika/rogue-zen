@@ -1,7 +1,8 @@
 
-import { GoldDrop, Player, Terrain } from '../types';
-import { MAP_WIDTH, MAP_HEIGHT, GOLD_VALUES } from '../constants';
-import * as TerrainSystem from './TerrainSystem';
+import { GoldDrop, Player, Terrain } from '../../types';
+import { MAP_WIDTH, MAP_HEIGHT, GOLD_VALUES } from '../../constants';
+import * as TerrainSystem from '../world/Terrain';
+import { AudioSystem } from '../core/Audio';
 
 export const spawnGold = (terrain: Terrain[], count: number): GoldDrop[] => {
     const drops: GoldDrop[] = [];
@@ -38,9 +39,10 @@ export const updateLoot = (
     for (let i = goldDrops.length - 1; i >= 0; i--) {
         const drop = goldDrops[i];
         const dist = Math.sqrt((player.x - drop.x)**2 + (player.y - drop.y)**2);
-        if (dist < 40) { // Pickup Radius
+        if (dist < 40) { 
             player.gold += drop.amount;
             spawnFloatingText(player.x, player.y - 40, `+${drop.amount} Gold`, '#fbbf24');
+            AudioSystem.playGoldPickup();
             goldDrops.splice(i, 1);
         }
     }
@@ -50,21 +52,17 @@ export const drawLoot = (ctx: CanvasRenderingContext2D, goldDrops: GoldDrop[]) =
     goldDrops.forEach(g => {
         ctx.save();
         ctx.translate(g.x, g.y);
-        // Bobbing effect
         const bob = Math.sin(Date.now() / 200) * 3;
         ctx.translate(0, bob);
         
-        // Glow
         ctx.shadowColor = '#fbbf24';
         ctx.shadowBlur = 10;
         
-        // Coin Shape
-        ctx.fillStyle = '#f59e0b'; // Amber-500
+        ctx.fillStyle = '#f59e0b'; 
         ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#fbbf24'; // Amber-400
+        ctx.fillStyle = '#fbbf24'; 
         ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
         
-        // Shine
         ctx.fillStyle = '#fff';
         ctx.globalAlpha = 0.8;
         ctx.beginPath(); ctx.arc(-2, -2, 2, 0, Math.PI*2); ctx.fill();

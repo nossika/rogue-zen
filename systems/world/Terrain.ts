@@ -1,13 +1,12 @@
 
-import { Terrain, TerrainType } from '../types';
-import { MAP_WIDTH, MAP_HEIGHT, TERRAIN_CONFIG } from '../constants';
-import { checkRectOverlap } from './utils';
+import { Terrain, TerrainType } from '../../types';
+import { MAP_WIDTH, MAP_HEIGHT, TERRAIN_CONFIG } from '../../constants';
+import { checkRectOverlap } from '../utils';
 
 export const generateTerrain = (): Terrain[] => {
   const newTerrain: Terrain[] = [];
-  const count = Math.floor(25 + Math.random() * 15); // Increased terrain count for larger map
+  const count = Math.floor(25 + Math.random() * 15); 
   
-  // Safety Zone definition (Center of map)
   const safeX = MAP_WIDTH / 2 - 150;
   const safeY = MAP_HEIGHT / 2 - 150;
   const safeW = 300;
@@ -18,8 +17,8 @@ export const generateTerrain = (): Terrain[] => {
       const roll = Math.random();
       if (roll > 0.85) tType = 'WATER';
       else if (roll > 0.70) tType = 'MUD';
-      else if (roll > 0.40) tType = 'EARTH_WALL'; // 30% Earth Wall
-      else tType = 'WALL'; // 40% Stone Wall
+      else if (roll > 0.40) tType = 'EARTH_WALL'; 
+      else tType = 'WALL'; 
       
       let tx, ty, tw, th;
       let attempts = 0;
@@ -57,15 +56,12 @@ export const generateTerrain = (): Terrain[] => {
 
       if (valid) {
           if (tType === 'EARTH_WALL') {
-              // Generate Earth Walls as clusters of small blocks for destructibility
               const blockSize = 40;
               const cols = Math.ceil(tw! / blockSize);
               const rows = Math.ceil(th! / blockSize);
               
               for (let r = 0; r < rows; r++) {
                   for (let c = 0; c < cols; c++) {
-                      // Skip some blocks randomly to make it look organic? 
-                      // No, solid wall is better for "Wall".
                       newTerrain.push({
                           id: `ew-${i}-${r}-${c}`,
                           x: tx! + c * blockSize,
@@ -98,7 +94,6 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: Terrain[]) =
         
         if (t.type === 'WALL') {
             ctx.fillRect(t.x, t.y, t.width, t.height);
-            // Stone bevel
             const bevelH = Math.min(10, t.height * 0.4);
             const bevelW = Math.min(5, t.width * 0.4);
             ctx.fillStyle = '#475569';
@@ -107,15 +102,12 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: Terrain[]) =
             ctx.fillRect(t.x + t.width - bevelW, t.y, bevelW, t.height);
         } else if (t.type === 'EARTH_WALL') {
             ctx.fillRect(t.x, t.y, t.width, t.height);
-            // Earth texture details
-            ctx.fillStyle = '#451a03'; // Darker brown specs
-            // Use deterministic seed for consistent rendering based on ID
+            ctx.fillStyle = '#451a03'; 
             const seed = parseInt(t.id.split('-').pop() || '0'); 
             
-            // Draw a simple pattern so it looks like a block but tiled
             ctx.fillRect(t.x + 4, t.y + 4, t.width - 8, t.height - 8);
             
-            ctx.fillStyle = '#92400e'; // Lighter speck
+            ctx.fillStyle = '#92400e'; 
             ctx.beginPath();
             ctx.rect(t.x + (seed % 20), t.y + (seed % 20), 4, 4);
             ctx.fill();
@@ -128,7 +120,6 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: Terrain[]) =
             ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(t.x + 30, t.y + 30, 10, 0, Math.PI*2); ctx.stroke();
         } else {
-            // MUD or other
             ctx.beginPath();
             ctx.roundRect(t.x, t.y, t.width, t.height, 10);
             ctx.fill();

@@ -1,78 +1,7 @@
 
-import { Item, Player, Enemy, Projectile, Rarity, ElementType, TalentType, WeaponType, UltimateType, Stats } from '../types';
-import { WEAPON_BASE_CONFIG, DETAIL_COLORS, RARITY_COLORS, ELEMENT_CONFIG, ULTIMATE_CONFIG } from '../constants';
-import { getWeightedRandom } from './utils';
-
-export const generateRandomWeapon = (level: number): Item => {
-    const weaponTypes: WeaponType[] = ['SWORD', 'AXE', 'DAGGER', 'PISTOL', 'SPEAR', 'SNIPER', 'BOW', 'BOMB'];
-    const elements = Object.values(ElementType);
-    
-    // Rarity Logic
-    const rarityRoll = Math.random();
-    let rarity = Rarity.COMMON;
-    if (rarityRoll > 0.9) rarity = Rarity.LEGENDARY;
-    else if (rarityRoll > 0.7) rarity = Rarity.EPIC;
-    else if (rarityRoll > 0.4) rarity = Rarity.RARE;
-
-    const rarityMult = { [Rarity.COMMON]: 1.0, [Rarity.RARE]: 1.25, [Rarity.EPIC]: 1.5, [Rarity.LEGENDARY]: 2.0 };
-    const rm = rarityMult[rarity];
-
-    const subtype = weaponTypes[Math.floor(Math.random() * weaponTypes.length)];
-    const config = WEAPON_BASE_CONFIG[subtype];
-    const name = `${rarity} ${config.name}`;
-    
-    // Randomized Stats logic
-    const randomize = (val: number) => val * (0.85 + Math.random() * 0.3);
-    
-    const baseAtk = (config.baseStats.attack + level * 1.5) * rm;
-    const finalAttack = Math.floor(randomize(baseAtk));
-    
-    const finalSpeed = Number((randomize(config.baseStats.attackSpeed) * (rarity === Rarity.LEGENDARY ? 1.2 : 1.0)).toFixed(2));
-    
-    let armorOnHit = 0;
-    const isMelee = ['SWORD', 'AXE', 'DAGGER', 'SPEAR'].includes(subtype);
-    if (isMelee) {
-        let targetAPS = 0; 
-        if (rarity === Rarity.COMMON) targetAPS = 0.2;
-        else if (rarity === Rarity.RARE) targetAPS = 0.5;
-        else if (rarity === Rarity.EPIC) targetAPS = 0.9;
-        else if (rarity === Rarity.LEGENDARY) targetAPS = 1.4;
-        
-        armorOnHit = targetAPS / Math.max(0.1, finalSpeed);
-        armorOnHit = randomize(armorOnHit);
-    }
-
-    const stats: Partial<Stats> = {
-        attack: finalAttack,
-        range: Math.floor(randomize(config.baseStats.range)),
-        attackSpeed: finalSpeed,
-        knockback: Math.floor(randomize(config.baseStats.knockback * rm)),
-        critChance: config.baseStats.critChance + (rarity === Rarity.LEGENDARY ? 0.05 : 0),
-        armorOnHit: Number(armorOnHit.toFixed(2))
-    };
-
-    const element = elements[Math.floor(Math.random() * elements.length)];
-
-    // Weapon Ultimate Logic
-    let randomUlt: UltimateType | undefined;
-    if (rarity !== Rarity.COMMON && Math.random() > 0.6) {
-        randomUlt = getWeightedRandom(ULTIMATE_CONFIG);
-    }
-
-    return {
-        id: Math.random().toString(),
-        name,
-        type: 'WEAPON',
-        subtype,
-        rarity,
-        level,
-        stats,
-        ultimate: randomUlt,
-        ultimateName: randomUlt ? randomUlt.replace(/_/g, ' ') : undefined,
-        element,
-        durability: 100
-    };
-};
+import { Item, Player, Enemy, Projectile, Rarity, ElementType, TalentType } from '../../types';
+import { WEAPON_BASE_CONFIG, DETAIL_COLORS, RARITY_COLORS, ELEMENT_CONFIG } from '../../constants';
+import { AudioSystem } from '../core/Audio';
 
 export const fireWeapon = (
     player: Player, 
@@ -91,7 +20,6 @@ export const fireWeapon = (
     const isMelee = ['SWORD', 'AXE', 'DAGGER', 'SPEAR'].includes(type);
     const isRanged = ['PISTOL', 'SNIPER', 'BOW'].includes(type);
 
-    // Apply Talent Multipliers from Armor
     let dmgMult = 1.0;
     let speedMult = 1.0;
     let rangeMult = 1.0;
@@ -123,19 +51,14 @@ export const fireWeapon = (
     const weaponArmorOnHit = weapon.stats.armorOnHit !== undefined ? weapon.stats.armorOnHit : config.baseStats.armorOnHit;
 
     const totalDamage = (player.stats.attack + weaponAtk) * dmgMult;
-    // Speed: Weapon Base * Multiplier + Player Additive. Note: Higher AttackSpeed is faster attacks (more attacks per sec)
-    // Logic below calculates cooldown, where Cooldown = 60 / AttacksPerSec
     const totalSpeedVal = (weaponSpeed * speedMult) + player.stats.attackSpeed; 
     
     const totalRange = (player.stats.range + weaponRange) * rangeMult;
     const totalKnockback = player.stats.knockback + weaponKnockback + knockbackAdd;
     const totalArmorGain = ((player.stats.armorOnHit || 0) + weaponArmorOnHit) * armorOnHitMult;
     
-    // Crit Calculation: Player Base + Weapon Base
     let totalCritChance = (player.stats.critChance || 0) + weaponCrit;
     
-    // Effective Cooldown Calculation
-    // Use Weapon Speed + Player Speed Stat modifier
     const effectiveSpeed = Math.max(0.1, totalSpeedVal); 
     const finalSpeedMultiplier = speedBoost > 0 ? effectiveSpeed * 1.5 : effectiveSpeed;
 
@@ -170,9 +93,8 @@ export const fireWeapon = (
           else projRadius = 40; // Sword
       } else if (type === 'BOMB') {
           projSpeed = 8;
-          projRadius = 8; // Bomb projectile radius
+          projRadius = 8; 
           isBomb = true;
-          // Calculate exact duration to reach target
           const dist = Math.sqrt((target.x - player.x)**2 + (target.y - player.y)**2);
           projDuration = Math.floor(dist / projSpeed);
           targetX = target.x;
@@ -190,7 +112,8 @@ export const fireWeapon = (
         vx: Math.cos(angle) * projSpeed,
         vy: Math.sin(angle) * projSpeed,
         damage: totalDamage,
-        duration: projDuration, 
+        duration: projDuration,
+        maxDuration: projDuration,
         color: elementColor,
         radius: projRadius,
         source: 'PLAYER',
@@ -203,8 +126,11 @@ export const fireWeapon = (
         hitEnemies: new Set(),
         isBomb: isBomb,
         targetX: targetX,
-        targetY: targetY
+        targetY: targetY,
+        enchantment: weapon.enchantment
       });
+
+      AudioSystem.playAttack(isMelee);
 
       cooldownRef.current = 60 / Math.max(0.1, finalSpeedMultiplier);
     }
@@ -255,11 +181,11 @@ export const drawWeapon = (ctx: CanvasRenderingContext2D, weapon: Item | null, x
              break;
         case 'SPEAR':
              ctx.fillStyle = DETAIL_COLORS.wood;
-             ctx.fillRect(-2, -5, 4, 45); // Long shaft
+             ctx.fillRect(-2, -5, 4, 45); 
              ctx.fillStyle = element !== ElementType.NONE ? elementColor : DETAIL_COLORS.steel;
              ctx.beginPath();
              ctx.moveTo(-4, 40);
-             ctx.lineTo(0, 55); // Tip
+             ctx.lineTo(0, 55); 
              ctx.lineTo(4, 40);
              ctx.fill();
              break;
@@ -275,13 +201,11 @@ export const drawWeapon = (ctx: CanvasRenderingContext2D, weapon: Item | null, x
              break;
         case 'SNIPER':
              ctx.fillStyle = '#1e293b';
-             ctx.fillRect(-3, 0, 6, 40); // Long barrel
+             ctx.fillRect(-3, 0, 6, 40); 
              ctx.fillStyle = DETAIL_COLORS.wood;
-             ctx.fillRect(-4, -5, 8, 15); // Stock
-             // Scope
+             ctx.fillRect(-4, -5, 8, 15); 
              ctx.fillStyle = '#000';
              ctx.fillRect(-5, 15, 2, 10);
-             // Tip
              ctx.fillStyle = element !== ElementType.NONE ? elementColor : '#000';
              ctx.fillRect(-3, 38, 6, 4);
              break;
@@ -289,26 +213,22 @@ export const drawWeapon = (ctx: CanvasRenderingContext2D, weapon: Item | null, x
              ctx.strokeStyle = DETAIL_COLORS.wood;
              ctx.lineWidth = 3;
              ctx.beginPath();
-             ctx.arc(0, 15, 20, Math.PI, 0); // Bow arc
+             ctx.arc(0, 15, 20, Math.PI, 0); 
              ctx.stroke();
              ctx.strokeStyle = '#fff';
              ctx.lineWidth = 1;
              ctx.beginPath();
              ctx.moveTo(-20, 15);
-             ctx.lineTo(20, 15); // String
+             ctx.lineTo(20, 15); 
              ctx.stroke();
-             // Arrow
              ctx.fillStyle = element !== ElementType.NONE ? elementColor : DETAIL_COLORS.steel;
              ctx.fillRect(-2, 5, 4, 25); 
              break;
         case 'BOMB':
-             // Draw Bomb held
              ctx.fillStyle = '#333';
              ctx.beginPath(); ctx.arc(0, 12, 8, 0, Math.PI * 2); ctx.fill();
-             // Fuse
              ctx.strokeStyle = '#d4d4d8'; ctx.lineWidth = 1.5;
              ctx.beginPath(); ctx.moveTo(0, 4); ctx.quadraticCurveTo(4, 0, 0, -2); ctx.stroke();
-             // Spark
              ctx.fillStyle = '#facc15';
              ctx.beginPath(); ctx.arc(0, -2, 2, 0, Math.PI * 2); ctx.fill();
              break;
@@ -339,7 +259,6 @@ export const drawWeapon = (ctx: CanvasRenderingContext2D, weapon: Item | null, x
         ctx.strokeRect(-5, -5, 10, 10); 
     }
     
-    // Element Indicator Dot
     if (element !== ElementType.NONE) {
         ctx.fillStyle = elementColor;
         ctx.shadowColor = elementColor;

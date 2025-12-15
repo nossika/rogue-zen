@@ -1,9 +1,9 @@
 
-import { Player, Enemy, Projectile, FloatingText, Terrain, Hazard, GoldDrop, Item, Particle } from '../types';
-import { MAP_WIDTH, MAP_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING, INITIAL_PLAYER_STATS } from '../constants';
-import * as TerrainSystem from './TerrainSystem';
-import * as LootSystem from './LootSystem';
-import * as TalentSystem from './TalentSystem';
+import { Player, Enemy, Projectile, FloatingText, Terrain, Hazard, GoldDrop, Particle } from '../../types';
+import { MAP_WIDTH, MAP_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING } from '../../constants';
+import * as TerrainSystem from '../world/Terrain';
+import * as LootSystem from '../items/Loot';
+import * as TalentSystem from '../items/Talent';
 
 interface StageSetupContext {
     player: Player;

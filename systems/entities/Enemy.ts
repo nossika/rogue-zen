@@ -1,7 +1,7 @@
 
-import { Enemy, EnemyType, GameAssets, Terrain, Player, Projectile, ElementType, BossAbility, SpatialHashGrid, HazardType } from '../types';
-import { MAP_WIDTH, MAP_HEIGHT, ENEMY_TYPES_CONFIG, DETAIL_COLORS, ELEMENT_CONFIG } from '../constants';
-import { checkRectOverlap } from './utils';
+import { Enemy, EnemyType, GameAssets, Terrain, Player, Projectile, ElementType, BossAbility, SpatialHashGrid, HazardType, DebuffType } from '../../types';
+import { MAP_WIDTH, MAP_HEIGHT, ENEMY_TYPES_CONFIG, DETAIL_COLORS, ELEMENT_CONFIG, DEBUFF_CONFIG } from '../../constants';
+import { checkRectOverlap } from '../utils';
 
 export const spawnEnemy = (
     enemies: Enemy[], 
@@ -150,7 +150,8 @@ export const spawnEnemy = (
       bossAbilities: bossAbilities,
       totalDamageTaken: 0,
       abilityTimers: {},
-      stunTimer: 0,
+      stunTimer: 0, // Legacy support
+      debuffs: { SLOW: 0, STUN: 0, BLEED: 0 },
       stats: {
         maxHp: maxHp, 
         hp: maxHp,
@@ -228,6 +229,7 @@ export const spawnMinion = (enemies: Enemy[], boss: Enemy, terrain: Terrain[]) =
       attackCooldown: 0,
       isMinion: true,
       stunTimer: 0,
+      debuffs: { SLOW: 0, STUN: 0, BLEED: 0 },
       stats: {
         maxHp: boss.stats.maxHp * 0.05, // Minions are relatively weak
         hp: boss.stats.maxHp * 0.05,
@@ -251,6 +253,8 @@ const spawnClone = (original: Enemy, enemies: Enemy[], terrain: Terrain[]) => {
    // Deep Copy
    const clone: Enemy = JSON.parse(JSON.stringify(original));
    clone.id = Math.random().toString();
+   // Reset debuffs on clone spawn? Usually yes, clean slate
+   clone.debuffs = { SLOW: 0, STUN: 0, BLEED: 0 };
    
    // Find valid spot nearby
    let placed = false;
@@ -285,6 +289,18 @@ const spawnClone = (original: Enemy, enemies: Enemy[], terrain: Terrain[]) => {
    }
    
    enemies.push(clone);
+};
+
+export const applyDebuff = (enemy: Enemy, type: DebuffType, duration: number) => {
+    // Boss Resistance: 1/3 duration
+    if (enemy.type === 'BOSS') {
+        duration = Math.floor(duration / DEBUFF_CONFIG.BOSS_RESISTANCE);
+    }
+    
+    // Refresh Logic: If new time > remaining, replace. Else keep remaining.
+    if (duration > enemy.debuffs[type]) {
+        enemy.debuffs[type] = duration;
+    }
 };
 
 export const triggerBossAbility = (
@@ -350,35 +366,37 @@ export const updateEnemies = (
     spawnFloatingText: (x: number, y: number, text: string, color: string, isCrit: boolean) => void,
     spawnSplatter: (x: number, y: number, color?: string) => void,
     onPlayerHit: (damage: number) => void,
-    handleCreateHazard?: (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER', element: ElementType, critChance?: number) => void,
-    grid?: SpatialHashGrid // Optional for backward compatibility but used for optimization
+    handleCreateHazard?: (x: number, y: number, radius: number, damage: number, type: HazardType, source: 'ENEMY' | 'PLAYER', element: ElementType, critChance?: number, knockback?: number) => void,
+    grid?: SpatialHashGrid 
 ) => {
-    // Use a loop that allows modifying the array (for summons)
     const currentCount = enemies.length;
     for(let i=0; i<currentCount; i++) {
         const e = enemies[i];
         
-        // Skip all logic for dead enemies (they are just animating)
         if (e.dead) continue;
 
         if (isTimeStop) {
-            // Even if frozen, we MUST insert into grid so projectiles can hit them
             if (grid) grid.insert(e);
             continue; 
         }
 
-        // Handle Stun
         if (e.stunTimer && e.stunTimer > 0) {
-            e.stunTimer--;
+            e.debuffs.STUN = Math.max(e.debuffs.STUN, e.stunTimer);
+            e.stunTimer = 0;
         }
+
+        if (e.debuffs.SLOW > 0) e.debuffs.SLOW--;
+        if (e.debuffs.STUN > 0) e.debuffs.STUN--;
+        if (e.debuffs.BLEED > 0) e.debuffs.BLEED--;
+
+        const isStunned = e.debuffs.STUN > 0;
+        const isSlowed = e.debuffs.SLOW > 0;
 
         const distToPlayer = Math.sqrt((player.x - e.x) ** 2 + (player.y - e.y) ** 2);
         const angleToPlayer = Math.atan2(player.y - e.y, player.x - e.x);
         
-        // Update facing angle smoothly
         e.angle = angleToPlayer;
         
-        // Update Boss Active Ability Timers
         if (e.type === 'BOSS' && e.abilityTimers) {
             Object.keys(e.abilityTimers).forEach(key => {
                  if (e.abilityTimers![key] > 0) e.abilityTimers![key]--;
@@ -387,20 +405,15 @@ export const updateEnemies = (
 
         const isBerserk = e.type === 'BOSS' && (e.abilityTimers?.['BERSERKER'] || 0) > 0;
         
-        // --- IRON BEETLE LOGIC ---
-        if (e.type === 'IRON_BEETLE' && e.buffCooldown !== undefined) {
+        if (!isStunned && e.type === 'IRON_BEETLE' && e.buffCooldown !== undefined) {
             if (e.buffCooldown > 0) e.buffCooldown--;
             
-            // Buff ability: Every 5s
             if (e.buffCooldown <= 0) {
-                // Find valid target: Nearby, Not Self, No Armor
                 let target: Enemy | null = null;
                 const range = 400;
                 
-                // Shuffle search or just pick first valid?
-                // Random pick is better for variety
                 const nearby = enemies.filter(ally => 
-                    !ally.dead && // Only buff living allies
+                    !ally.dead && 
                     ally.id !== e.id && 
                     ally.stats.shield <= 0 &&
                     Math.sqrt((ally.x - e.x)**2 + (ally.y - e.y)**2) < range
@@ -411,74 +424,64 @@ export const updateEnemies = (
                 }
                 
                 if (target) {
-                    // Grant 30% of Beetle's MaxHP as Shield
                     const shieldAmt = e.stats.maxHp * 0.3;
                     target.stats.shield = shieldAmt;
                     spawnFloatingText(target.x, target.y - 40, "ARMOR UP!", '#cbd5e1', false);
                     
-                    // Reset cooldown (5s)
                     e.buffCooldown = 300;
                 }
             }
         }
 
-        // --- BOSS LOGIC ---
         if (e.type === 'BOSS') {
-            // Summoning Logic (Base mechanic)
             if (e.summonCooldown !== undefined) {
                 e.summonCooldown--;
                 if (e.summonCooldown <= 0) {
-                    // Spawn 2 minions every 10s
                     spawnMinion(enemies, e, terrain);
                     spawnMinion(enemies, e, terrain);
-                    e.summonCooldown = 600; // Reset 10s (600 frames)
+                    e.summonCooldown = 600; 
                     spawnFloatingText(e.x, e.y - 50, "SUMMON!", '#a855f7', true);
                 }
             }
 
-            // Attack Logic
-            if (e.attackCooldown > 0) {
-                 // Berserker Cooldown Reduction (1.5x speed -> cooldown ticks 1.5x faster or just reduce base)
-                 // Simply ticking faster effectively reduces cooldown
-                 e.attackCooldown -= isBerserk ? 1.5 : 1; 
-            }
-            
-            if (distToPlayer < 500 && e.attackCooldown <= 0) {
-                const elementColor = ELEMENT_CONFIG[e.element].color;
-                // Fire spread of 3
-                for (let offset = -0.3; offset <= 0.3; offset += 0.3) {
-                     projectiles.push({
-                      id: Math.random().toString(),
-                      x: e.x,
-                      y: e.y,
-                      vx: Math.cos(angleToPlayer + offset) * 4.9, // Reduced from 7 (-30%)
-                      vy: Math.sin(angleToPlayer + offset) * 4.9,
-                      damage: e.stats.attack,
-                      duration: 100,
-                      color: elementColor,
-                      radius: 10,
-                      source: 'ENEMY',
-                      penetrate: false,
-                      knockback: 0,
-                      element: e.element,
-                      critChance: 0,
-                      armorGain: 0,
-                      hitEnemies: new Set()
-                  });
+            if (!isStunned) {
+                if (e.attackCooldown > 0) {
+                     e.attackCooldown -= isBerserk ? 1.5 : 1; 
                 }
-                e.attackCooldown = 160; // Increased cooldown (was 130) -> Slower frequency (~20%)
+                
+                if (distToPlayer < 500 && e.attackCooldown <= 0) {
+                    const elementColor = ELEMENT_CONFIG[e.element].color;
+                    for (let offset = -0.3; offset <= 0.3; offset += 0.3) {
+                         projectiles.push({
+                          id: Math.random().toString(),
+                          x: e.x,
+                          y: e.y,
+                          vx: Math.cos(angleToPlayer + offset) * 4.9, 
+                          vy: Math.sin(angleToPlayer + offset) * 4.9,
+                          damage: e.stats.attack,
+                          duration: 100,
+                          color: elementColor,
+                          radius: 10,
+                          source: 'ENEMY',
+                          penetrate: false,
+                          knockback: 0,
+                          element: e.element,
+                          critChance: 0,
+                          armorGain: 0,
+                          hitEnemies: new Set()
+                      });
+                    }
+                    e.attackCooldown = 160; 
+                }
             }
         }
 
-        // --- RANGED, BOMBER & INCINERATOR LOGIC ---
         let move = true;
         
-        // Stunned enemies cannot move
-        if (e.stunTimer && e.stunTimer > 0) {
+        if (isStunned) {
             move = false;
         }
 
-        // Updated: Boss is excluded from this stop logic so it moves continuously
         if (move && (e.type === 'RANGED' || e.type === 'BOMBER' || e.type === 'INCINERATOR')) {
            const stopDist = (e.type === 'BOMBER' || e.type === 'INCINERATOR' ? 350 : 300);
            if (distToPlayer < stopDist) {
@@ -487,15 +490,11 @@ export const updateEnemies = (
               if (e.type === 'BOMBER' || e.type === 'INCINERATOR') {
                   if (e.attackCooldown > 0) e.attackCooldown--;
                   if (e.attackCooldown <= 0) {
-                      // Toss Bomb at player location
                       const isIncendiary = e.type === 'INCINERATOR';
                       const elementColor = ELEMENT_CONFIG[e.element].color;
                       
-                      // Slow down projectile speed by ~30% -> Increase duration by ~43%
-                      // Original: 60 frames -> New: ~85 frames
                       const flightDuration = 85; 
 
-                      // Determine velocity to reach player in duration
                       const dx = player.x - e.x;
                       const dy = player.y - e.y;
                       
@@ -511,7 +510,7 @@ export const updateEnemies = (
                           color: isIncendiary ? '#dc2626' : '#000000',
                           radius: 10,
                           source: 'ENEMY',
-                          penetrate: true, // Ignore walls during flight
+                          penetrate: true, 
                           knockback: 20,
                           element: e.element,
                           critChance: 0,
@@ -522,7 +521,7 @@ export const updateEnemies = (
                           targetY: player.y,
                           hitEnemies: new Set()
                       });
-                      e.attackCooldown = 300; // Slow attack (5s)
+                      e.attackCooldown = 300; 
                   }
               }
               else if (e.type === 'RANGED') {
@@ -547,47 +546,33 @@ export const updateEnemies = (
                           armorGain: 0,
                           hitEnemies: new Set()
                       });
-                      e.attackCooldown = 225; // Reduced frequency (was 180) -> 20% slower
+                      e.attackCooldown = 225; 
                   }
               }
            }
         }
         
-        // Manual check for boss attack cooldown tick if it's moving
         if (e.type === 'BOSS' && e.attackCooldown > 0) {
-            // Already handled in the BOSS LOGIC block above, but good to be safe if logic moves
         }
 
-        // --- ZOMBIE LOGIC: Drop Poison ---
-        if (e.type === 'ZOMBIE' && handleCreateHazard && e.stunTimer <= 0) {
-            // Drop poison trail occasionally
-            // 5% chance per frame (approx every 1.2s at 60fps), but check not to overlap too much?
-            // Actually random overlap is fine for poison puddles.
+        if (!isStunned && e.type === 'ZOMBIE' && handleCreateHazard) {
             if (Math.random() < 0.05) {
-                // Damage is half attack power, but ticks rapidly
-                // Assigning Grass Element to Poison trail for now as default
                 handleCreateHazard(e.x, e.y, 25, e.stats.attack * 0.5, 'POISON', 'ENEMY', ElementType.GRASS);
             }
         }
 
         if (move) {
-           // --- FLUID MOVEMENT AI (Steering Behaviors) ---
-
-           // 1. SEEK: Basic vector towards player
            let dirX = Math.cos(angleToPlayer);
            let dirY = Math.sin(angleToPlayer);
 
-           // 2. WANDER: Add randomness (Perlin-ish noise based on time + ID)
            const idSeed = parseFloat(e.id.split('-')[1] || '0.5'); 
            const time = Date.now() / 800;
            let noise = Math.sin(time + (idSeed || Math.random() * 10)) * 0.8; 
            
-           // Zombies wander more erratically (higher noise influence)
            if (e.type === 'ZOMBIE') {
                noise *= 2; 
            }
 
-           // Rotate the seek vector by the noise
            const cosN = Math.cos(noise);
            const sinN = Math.sin(noise);
            const wanderX = dirX * cosN - dirY * sinN;
@@ -596,7 +581,6 @@ export const updateEnemies = (
            dirX = wanderX;
            dirY = wanderY;
 
-           // 3. AVOIDANCE (Repulsion Field)
            const repulsionDist = 60; 
            let pushX = 0;
            let pushY = 0;
@@ -604,7 +588,6 @@ export const updateEnemies = (
            for (const t of terrain) {
                if (t.type !== 'WALL' && t.type !== 'EARTH_WALL') continue;
                
-               // Find closest point on the wall rectangle to the enemy center
                const cx = Math.max(t.x, Math.min(e.x, t.x + t.width));
                const cy = Math.max(t.y, Math.min(e.y, t.y + t.height));
                
@@ -621,17 +604,19 @@ export const updateEnemies = (
                }
            }
 
-           // Combine forces
            let finalVx = dirX + pushX;
            let finalVy = dirY + pushY;
 
-           // Normalize to max speed
            const len = Math.sqrt(finalVx * finalVx + finalVy * finalVy) || 1;
-           const speed = e.stats.moveSpeed * (isBerserk ? 2 : 1); // Double speed if Berserk
+           let speed = e.stats.moveSpeed * (isBerserk ? 2 : 1); 
+           
+           if (isSlowed) {
+               speed *= DEBUFF_CONFIG.SLOW_SPEED_MULT;
+           }
+
            finalVx = (finalVx / len) * speed;
            finalVy = (finalVy / len) * speed;
 
-           // --- PHYSICS & COLLISION RESOLUTION ---
            const nextX = e.x + finalVx;
            let hitX = false;
            for (const t of terrain) {
@@ -641,7 +626,6 @@ export const updateEnemies = (
            }
            if (!hitX) e.x = Math.max(20, Math.min(MAP_WIDTH - 20, nextX));
 
-           // Y Axis
            const nextY = e.y + finalVy;
            let hitY = false;
            for (const t of terrain) {
@@ -652,23 +636,18 @@ export const updateEnemies = (
            if (!hitY) e.y = Math.max(20, Math.min(MAP_HEIGHT - 20, nextY));
         }
 
-        // Register in Spatial Grid
         if (grid) {
             grid.insert(e);
         }
 
-        // Collision with player
-        if (distToPlayer < (player.width/2 + e.width/2)) {
-           // Apply damage
+        if (!isStunned && distToPlayer < (player.width/2 + e.width/2)) {
            onPlayerHit(e.stats.attack);
-           // Stun enemy for 1s (60 frames)
-           e.stunTimer = 60;
+           applyDebuff(e, 'STUN', 60);
         }
     }
 };
 
 export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameAssets) => {
-    // --- DEATH ANIMATION (SKULL) ---
     if (e.dead) {
         ctx.save();
         ctx.translate(e.x, e.y);
@@ -677,27 +656,22 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
         const maxTime = 25;
         const opacity = Math.max(0, timer / maxTime);
         
-        // Float Up Effect
         const floatY = (1 - opacity) * -20;
         ctx.translate(0, floatY);
         
         ctx.globalAlpha = opacity;
         
-        // Scale Skull based on enemy size (Base 32px)
         const scale = Math.max(0.6, e.width / 32);
         ctx.scale(scale, scale);
         
-        // Draw Skull Shape
-        ctx.fillStyle = '#e2e8f0'; // Slate-200 (Bone)
+        ctx.fillStyle = '#e2e8f0'; 
         ctx.shadowColor = 'black';
         ctx.shadowBlur = 5;
         
-        // Cranium
         ctx.beginPath();
         ctx.arc(0, -5, 11, 0, Math.PI * 2);
         ctx.fill();
         
-        // Jaw
         ctx.beginPath();
         ctx.moveTo(-7, 2);
         ctx.lineTo(7, 2);
@@ -708,32 +682,28 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
         ctx.closePath();
         ctx.fill();
         
-        // Eyes (Hollow)
-        ctx.fillStyle = '#0f172a'; // Slate-900
+        ctx.fillStyle = '#0f172a'; 
         ctx.beginPath(); ctx.ellipse(-4, -3, 3, 4, 0, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.ellipse(4, -3, 3, 4, 0, 0, Math.PI*2); ctx.fill();
         
-        // Nose
         ctx.beginPath();
         ctx.moveTo(0, 2);
         ctx.lineTo(-2, 6);
         ctx.lineTo(2, 6);
         ctx.fill();
         
-        // Teeth lines
         ctx.strokeStyle = '#94a3b8';
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(-2, 6); ctx.lineTo(-2, 12); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(2, 6); ctx.lineTo(2, 12); ctx.stroke();
 
         ctx.restore();
-        return; // Stop drawing normal body
+        return; 
     }
 
     ctx.save();
     ctx.translate(e.x, e.y);
     
-    // Elemental Aura for Boss
     if (e.type === 'BOSS') {
         ctx.save();
         ctx.globalAlpha = (ctx.globalAlpha || 1) * 0.3;
@@ -745,7 +715,6 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
         ctx.restore();
     }
 
-    // Ability Visuals
     if (e.type === 'BOSS' && e.abilityTimers) {
         if (e.abilityTimers['INVINCIBLE_ARMOR'] > 0) {
             ctx.save();
@@ -764,7 +733,6 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
         }
     }
 
-    // Boss Crown
     if (e.type === 'BOSS') {
         ctx.save();
         ctx.translate(0, -e.height/2 - 10);
@@ -781,11 +749,8 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
         ctx.restore();
     }
 
-    // --- PROCEDURAL DRAWING ---
-    // Color depends on Element
     const baseColor = ELEMENT_CONFIG[e.element].color;
     
-    // Rotate towards movement direction (or player)
     ctx.rotate(e.angle);
 
     ctx.fillStyle = baseColor;
@@ -796,15 +761,13 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
 
     switch(e.type) {
         case 'FAST':
-            // Triangle / Arrowhead
             ctx.moveTo(e.width/2, 0);
             ctx.lineTo(-e.width/2, e.height/2);
-            ctx.lineTo(-e.width/3, 0); // Indent back
+            ctx.lineTo(-e.width/3, 0); 
             ctx.lineTo(-e.width/2, -e.height/2);
             break;
             
         case 'TANK':
-            // Square / Octagon-ish
             const w = e.width/2;
             ctx.moveTo(w, w/2);
             ctx.lineTo(w/2, w);
@@ -817,12 +780,10 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
             break;
 
         case 'RANGED':
-            // Diamond / Star
             ctx.moveTo(e.width/1.5, 0);
             ctx.lineTo(0, e.height/3);
             ctx.lineTo(-e.width/1.5, 0);
             ctx.lineTo(0, -e.height/3);
-            // Winglets
             ctx.moveTo(0, e.height/3);
             ctx.lineTo(0, e.height/1.5);
             ctx.moveTo(0, -e.height/3);
@@ -831,20 +792,16 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
         
         case 'BOMBER':
         case 'INCINERATOR':
-             // Round bomb bag shape
              ctx.arc(0, 0, e.width/2, 0, Math.PI * 2);
-             // Fuse connector
              ctx.moveTo(e.width/3, -e.height/3);
              ctx.lineTo(e.width/2, -e.height/2);
              break;
 
         case 'ZOMBIE':
-             // Irregular / Jagged blob
              const zRad = e.width/2;
              const jags = 7;
              for(let i=0; i<jags*2; i++) {
                  const angle = (i / (jags*2)) * Math.PI * 2;
-                 // Irregular radius
                  const offset = (i % 2 === 0) ? 0 : -5;
                  const r = zRad + offset;
                  if(i===0) ctx.moveTo(Math.cos(angle)*r, Math.sin(angle)*r);
@@ -853,29 +810,25 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
              break;
 
         case 'IRON_BEETLE':
-             // Beetle Shape
-             ctx.scale(1, 0.8); // Flatten slightly
+             ctx.scale(1, 0.8); 
              ctx.arc(0, 0, e.width/2, 0, Math.PI * 2);
              ctx.fill();
              ctx.stroke();
              
-             // Shell line
              ctx.beginPath();
              ctx.moveTo(-e.width/2, 0);
              ctx.lineTo(e.width/2, 0);
              ctx.stroke();
              
-             // Head
              ctx.beginPath();
              ctx.arc(e.width/2, 0, e.width/4, -Math.PI/2, Math.PI/2);
-             ctx.fillStyle = '#64748b'; // Darker head
+             ctx.fillStyle = '#64748b'; 
              ctx.fill();
              ctx.stroke();
-             ctx.scale(1, 1.25); // Reset scale
+             ctx.scale(1, 1.25); 
              break;
 
         case 'BOSS':
-            // Complex Spiky Shape
             const spikes = 12;
             const rOuter = e.width/2;
             const rInner = e.width/3;
@@ -889,7 +842,6 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
 
         case 'STANDARD':
         default:
-            // Spiky Circle
             const s = 8;
             for(let i=0; i<s*2; i++) {
                 const r = (i%2===0) ? e.width/2 : e.width/2 - 4;
@@ -904,23 +856,20 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
     ctx.fill();
     ctx.stroke();
     
-    // Bomber Special Detail: Fuse Spark
     if ((e.type === 'BOMBER' || e.type === 'INCINERATOR') && !e.dead) {
         const isIncinerator = e.type === 'INCINERATOR';
-        ctx.fillStyle = isIncinerator ? '#7f1d1d' : '#111'; // Darker tank for Incinerator
+        ctx.fillStyle = isIncinerator ? '#7f1d1d' : '#111'; 
         ctx.beginPath(); ctx.arc(0, 0, e.width/3, 0, Math.PI*2); ctx.fill();
         ctx.beginPath();
         ctx.moveTo(e.width/2, -e.height/2);
         ctx.quadraticCurveTo(e.width/2 + 5, -e.height/2 - 10, e.width/2 + 10, -e.height/2 - 5);
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
-        // Spark
         if (Math.floor(Date.now() / 100) % 2 === 0) {
             ctx.fillStyle = '#fbbf24';
             ctx.beginPath(); ctx.arc(e.width/2 + 10, -e.height/2 - 5, 3, 0, Math.PI*2); ctx.fill();
         }
     }
 
-    // Inner Glow / Gradient overlay (except bomber which is darker)
     if (e.type !== 'BOMBER' && e.type !== 'INCINERATOR') {
         const grad = ctx.createRadialGradient(0,0, e.width/5, 0,0, e.width/2);
         grad.addColorStop(0, 'rgba(255,255,255,0.6)');
@@ -929,84 +878,91 @@ export const drawEnemy = (ctx: CanvasRenderingContext2D, e: Enemy, assets: GameA
         ctx.fill();
     }
 
-    // Eyes
     ctx.fillStyle = DETAIL_COLORS.enemyEye;
     ctx.shadowColor = DETAIL_COLORS.enemyEye;
     ctx.shadowBlur = 10;
     
     if (e.type === 'BOSS') {
-         // Many eyes
          ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
          ctx.beginPath(); ctx.arc(-12, -8, 5, 0, Math.PI*2); ctx.fill();
          ctx.beginPath(); ctx.arc(12, -8, 5, 0, Math.PI*2); ctx.fill();
          ctx.beginPath(); ctx.arc(0, 10, 4, 0, Math.PI*2); ctx.fill();
     } else if (e.type === 'FAST') {
-         // Cyclops visor
          ctx.beginPath();
          ctx.ellipse(4, 0, 4, 8, 0, 0, Math.PI*2);
          ctx.fill();
     } else if (e.type === 'BOMBER' || e.type === 'INCINERATOR') {
-         // Goggles
          const isIncinerator = e.type === 'INCINERATOR';
          ctx.fillStyle = '#333';
          ctx.beginPath(); ctx.arc(-6, -4, 6, 0, Math.PI*2); ctx.fill();
          ctx.beginPath(); ctx.arc(6, -4, 6, 0, Math.PI*2); ctx.fill();
-         ctx.fillStyle = isIncinerator ? '#fca5a5' : '#4ade80'; // Red glow for incinerator, Green for bomber
+         ctx.fillStyle = isIncinerator ? '#fca5a5' : '#4ade80'; 
          ctx.beginPath(); ctx.arc(-6, -4, 4, 0, Math.PI*2); ctx.fill();
          ctx.beginPath(); ctx.arc(6, -4, 4, 0, Math.PI*2); ctx.fill();
     } else if (e.type === 'ZOMBIE') {
-        // One big eye, one small eye
-        ctx.beginPath(); ctx.arc(-6, -4, 5, 0, Math.PI*2); ctx.fill(); // Big
-        ctx.beginPath(); ctx.arc(6, -2, 2, 0, Math.PI*2); ctx.fill();  // Small
-        // Drool
+        ctx.beginPath(); ctx.arc(-6, -4, 5, 0, Math.PI*2); ctx.fill(); 
+        ctx.beginPath(); ctx.arc(6, -2, 2, 0, Math.PI*2); ctx.fill();  
         ctx.fillStyle = '#a3e635';
         ctx.beginPath(); ctx.arc(8, 8, 3, 0, Math.PI*2); ctx.fill();
     } else if (e.type === 'IRON_BEETLE') {
-        // Small beady eyes
         ctx.beginPath(); ctx.arc(10, -5, 2, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.arc(10, 5, 2, 0, Math.PI*2); ctx.fill();
     } else {
-        // Standard two eyes
         ctx.beginPath(); ctx.ellipse(6, -4, 4, 2, 0, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.ellipse(6, 4, 4, 2, 0, 0, Math.PI*2); ctx.fill();
     }
     
     ctx.shadowBlur = 0;
     
-    // Remove rotation for health bar
     ctx.restore();
     ctx.save();
     ctx.translate(e.x, e.y);
     
-    // Health bar drawing (ONLY IF ALIVE - Redundant check here but good for safety if refactored)
     if (!e.dead) {
+        const barY = -e.height/2 - 12;
+        
+        if (e.debuffs.STUN > 0) {
+            ctx.save();
+            const wobble = Math.sin(Date.now() / 200) * 5;
+            ctx.translate(0, -e.height/2 - 25 + wobble);
+            ctx.fillStyle = '#facc15';
+            ctx.font = 'bold 12px monospace';
+            ctx.fillText("ZZZ", -10, 0);
+            ctx.restore();
+        }
+
+        if (e.debuffs.SLOW > 0) {
+            ctx.fillStyle = '#60a5fa'; 
+            ctx.beginPath(); ctx.arc(-e.width/2 - 10, 0, 4, 0, Math.PI*2); ctx.fill();
+        }
+
+        if (e.debuffs.BLEED > 0) {
+            ctx.fillStyle = '#ef4444'; 
+            ctx.beginPath(); 
+            ctx.moveTo(e.width/2 + 10, 0);
+            ctx.lineTo(e.width/2 + 10, 4);
+            ctx.arc(e.width/2 + 10, 4, 3, 0, Math.PI);
+            ctx.fill();
+        }
+
         const hpPct = Math.max(0, e.stats.hp / e.stats.maxHp);
         const barWidth = e.type === 'BOSS' ? 64 : 32;
         
-        // Background
         ctx.fillStyle = '#333';
-        ctx.fillRect(-barWidth/2, -e.height/2 - 12, barWidth, 5);
+        ctx.fillRect(-barWidth/2, barY, barWidth, 5);
         
-        // HP Bar
         ctx.fillStyle = '#ef4444';
-        ctx.fillRect(-barWidth/2, -e.height/2 - 12, barWidth * hpPct, 5);
+        ctx.fillRect(-barWidth/2, barY, barWidth * hpPct, 5);
         
-        // Armor Bar (Shield)
         if (e.stats.shield > 0) {
-            // Armor bar drawn on top, represented as Silver
-            // Cap visual at 100% width, but maybe indicate overlay? 
-            // Logic: Width proportional to shield relative to MaxHP, capped at barWidth
             const shieldPct = Math.min(1.0, e.stats.shield / e.stats.maxHp);
             
-            // Draw Armor bar ABOVE HP bar or overlay?
-            // Let's draw it immediately above the HP bar to show it's a separate layer
-            ctx.fillStyle = '#cbd5e1'; // Silver
-            ctx.fillRect(-barWidth/2, -e.height/2 - 19, barWidth * shieldPct, 4);
+            ctx.fillStyle = '#cbd5e1'; 
+            ctx.fillRect(-barWidth/2, barY - 7, barWidth * shieldPct, 4);
             
-            // Border for armor
             ctx.strokeStyle = '#475569';
             ctx.lineWidth = 1;
-            ctx.strokeRect(-barWidth/2, -e.height/2 - 19, barWidth, 4);
+            ctx.strokeRect(-barWidth/2, barY - 7, barWidth, 4);
         }
     }
     

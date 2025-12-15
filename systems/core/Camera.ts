@@ -1,6 +1,6 @@
 
-import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT } from '../constants';
-import { Player } from '../types';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT } from '../../constants';
+import { Player } from '../../types';
 
 export const updateCamera = (camera: { x: number, y: number }, player: Player) => {
     // Camera Deadzone Logic

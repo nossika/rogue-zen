@@ -1,9 +1,9 @@
 
-import { Player, GameAssets, Terrain, TerrainType, FloatingText } from '../types';
-import { MAP_WIDTH, MAP_HEIGHT, DETAIL_COLORS } from '../constants';
-import { checkRectOverlap } from './utils';
-import { drawWeapon } from './WeaponSystem';
-import * as FloatingTextSystem from './FloatingTextSystem';
+import { Player, GameAssets, Terrain, TerrainType, FloatingText } from '../../types';
+import { MAP_WIDTH, MAP_HEIGHT, DETAIL_COLORS } from '../../constants';
+import { checkRectOverlap } from '../utils';
+import { drawWeapon } from '../combat/Weapon';
+import * as FloatingTextSystem from '../ui/FloatingText';
 
 export const updatePlayerMovement = (
     player: Player, 

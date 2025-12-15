@@ -1,9 +1,8 @@
 
-import { Particle } from "../types";
+import { Particle } from "../../types";
 
 export const createBloodSplatter = (particles: Particle[], x: number, y: number, color: string = '#ef4444') => {
-    // Create a small burst of particles
-    const count = 4 + Math.floor(Math.random() * 4); // 4-7 particles
+    const count = 4 + Math.floor(Math.random() * 4); 
     for(let i=0; i<count; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = 1 + Math.random() * 3;
@@ -29,7 +28,6 @@ export const updateParticles = (particles: Particle[]) => {
         p.x += p.vx;
         p.y += p.vy;
         
-        // Friction
         p.vx *= 0.9;
         p.vy *= 0.9;
         

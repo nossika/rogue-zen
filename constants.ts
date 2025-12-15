@@ -1,5 +1,5 @@
 
-import { Rarity, UltimateType, WeaponType, EnemyType, TerrainType, ElementType, TalentType, TalentDefinition, UltimateDefinition } from './types';
+import { Rarity, UltimateType, WeaponType, EnemyType, TerrainType, ElementType, TalentType, TalentDefinition, UltimateDefinition, DebuffType } from './types';
 
 // Detect mobile device width (simplified check)
 const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -170,6 +170,20 @@ export const TERRAIN_CONFIG: Record<TerrainType, { color: string, label: string 
   EARTH_WALL: { color: '#78350f', label: 'Earth Wall' }, // Amber-900
   WATER: { color: 'rgba(14, 165, 233, 0.5)', label: 'Water' }, // Sky-500 transparent
   MUD: { color: 'rgba(67, 20, 7, 0.7)', label: 'Mud' }, // Rusty brown
+};
+
+// --- CONFIGURATION: DEBUFFS ---
+export const DEBUFF_CONFIG = {
+    SLOW_SPEED_MULT: 0.7, // Reduce speed by 30%
+    BLEED_DAMAGE_MULT: 1.5, // Increase damage taken by 50%
+    BOSS_RESISTANCE: 3.0, // Bosses take 1/3 duration
+};
+
+export const WEAPON_ENCHANTMENT_CONFIG: Record<string, { weight: number, chanceRange: [number, number], durationRange: [number, number], type: DebuffType, label: string }> = {
+    NONE: { weight: 40, chanceRange: [0,0], durationRange: [0,0], type: 'SLOW', label: 'None' }, // Dummy type
+    SLOW: { weight: 20, chanceRange: [0.1, 0.3], durationRange: [60, 240], type: 'SLOW', label: 'Frost' }, // 1-4s (60fps)
+    STUN: { weight: 15, chanceRange: [0.03, 0.08], durationRange: [30, 60], type: 'STUN', label: 'Bash' }, // 0.5-1s
+    BLEED: { weight: 25, chanceRange: [0.1, 0.3], durationRange: [120, 300], type: 'BLEED', label: 'Serrated' } // 2-5s
 };
 
 // --- CONFIGURATION: ULTIMATES ---

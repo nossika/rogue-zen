@@ -34,6 +34,15 @@ export enum TalentType {
   LUCKY = 'LUCKY',         // Free Reroll & Dodge
 }
 
+export type DebuffType = 'SLOW' | 'STUN' | 'BLEED';
+
+export interface WeaponEnchantment {
+  type: DebuffType;
+  chance: number; // 0 to 1
+  duration: number; // Frames
+  label: string;
+}
+
 export interface Talent {
   type: TalentType;
   value1: number; // Primary Multiplier/Value (e.g. Dmg, DefMult, Dodge)
@@ -92,6 +101,7 @@ export interface Hazard {
   source: 'PLAYER' | 'ENEMY'; // Who created it
   element: ElementType;
   critChance?: number;
+  knockback?: number;
 }
 
 export interface GoldDrop {
@@ -130,6 +140,7 @@ export interface Item {
   ultimate?: UltimateType; // Only for Weapons now
   ultimateName?: string;
   talent?: Talent; // Only for Armor now
+  enchantment?: WeaponEnchantment; // Only for Weapons now
   description?: string;
   level: number;
   durability: number; // 0 to 100
@@ -179,9 +190,16 @@ export interface Enemy extends Entity {
   attackCooldown: number;
   summonCooldown?: number;
   isMinion?: boolean;
-  stunTimer?: number; // Timer for when enemy hits player and stops
+  stunTimer?: number; // Legacy, can be merged with debuffs.STUN, keeping for now
   buffCooldown?: number; // For Support enemies (e.g. Iron Beetle)
   
+  // Status Effects
+  debuffs: {
+      SLOW: number; // Duration in frames
+      STUN: number;
+      BLEED: number;
+  };
+
   // Boss Specifics
   bossAbilities?: BossAbility[];
   totalDamageTaken?: number;
@@ -210,6 +228,9 @@ export interface Projectile {
   armorGain: number; // Shield to add on hit
   hitEnemies: Set<string>; // IDs of entities already hit by this projectile
   
+  // Weapon Enchantment Proc
+  enchantment?: WeaponEnchantment;
+
   // Bomb Specifics
   isBomb?: boolean;
   isIncendiary?: boolean; // Creates fire zone

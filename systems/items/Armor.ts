@@ -1,12 +1,11 @@
 
-import { Item, ArmorType, Rarity, TalentType, Talent, Stats, ElementType } from '../types';
-import { TALENT_CONFIG } from '../constants';
-import { getWeightedRandom } from './utils';
+import { Item, ArmorType, Rarity, TalentType, Talent, Stats, ElementType } from '../../types';
+import { TALENT_CONFIG } from '../../constants';
+import { getWeightedRandom } from '../utils';
 
 export const generateRandomArmor = (level: number): Item => {
     const armorTypes: ArmorType[] = ['SHIELD', 'GLOVES', 'BOOTS'];
     
-    // Rarity Logic
     const rarityRoll = Math.random();
     let rarity = Rarity.COMMON;
     if (rarityRoll > 0.9) rarity = Rarity.LEGENDARY;
@@ -37,21 +36,17 @@ export const generateRandomArmor = (level: number): Item => {
         name = `${rarity} Boots`;
         stats = {
             moveSpeed: Number((0.5 * rm).toFixed(1)),
-            ultChargeRate: Number((0.2 * rm).toFixed(2)) // +0.2% - 0.8% per sec
+            ultChargeRate: Number((0.2 * rm).toFixed(2)) 
         };
     }
 
-    // ARMOR TALENT GENERATION
-    // Chance to have talent: Common 20%, Rare 50%, Epic 80%, Legend 100%
     const talentChance = rarity === Rarity.COMMON ? 0.2 : rarity === Rarity.RARE ? 0.5 : rarity === Rarity.EPIC ? 0.8 : 1.0;
     let armorTalent: Talent | undefined;
 
     if (Math.random() <= talentChance) {
-        // Select Talent based on Config Weights
         const tType = getWeightedRandom(TALENT_CONFIG);
         const config = TALENT_CONFIG[tType];
         
-        // Helper to lerp value based on rarity factor (rf) from config range
         const lerp = (range: [number, number], isInt = false) => {
             const val = range[0] + (range[1] - range[0]) * rf;
             return isInt ? Math.floor(val) : Number(val.toFixed(2));
@@ -61,10 +56,6 @@ export const generateRandomArmor = (level: number): Item => {
         const v2 = config.ranges.value2 ? lerp(config.ranges.value2) : undefined;
         const v3 = config.ranges.value3 ? lerp(config.ranges.value3, tType === TalentType.SNIPER) : undefined;
 
-        // Special handling for Scientist to ensure distinct values like original logic
-        // Original logic split the range into lower/upper bounds based on rarity.
-        // Here we just apply a small jitter if needed, but linear scaling is usually fine.
-        
         armorTalent = {
             type: tType,
             value1: v1,
