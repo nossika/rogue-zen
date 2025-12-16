@@ -1,5 +1,5 @@
 
-import { Player, Enemy, UltimateType, TalentType, Item, Terrain } from '../../types';
+import { Player, Enemy, UltimateType, TalentType, Terrain } from '../../types';
 import { ULTIMATE_CONFIG } from '../../constants';
 
 interface UltimateContext {
@@ -19,13 +19,9 @@ export const activateUltimate = (context: UltimateContext) => {
     if (p.ultimateCharge < 100) return;
     
     let effectMult = 1.0;
-    const checkScientist = (item: Item | null) => {
-        if (item?.talent?.type === TalentType.SCIENTIST) {
-            effectMult += (item.talent.value2 || 1.0) - 1.0; 
-        }
-    };
-    checkScientist(p.equipment.armor1);
-    checkScientist(p.equipment.armor2);
+    if (p.talent?.type === TalentType.SCIENTIST) {
+        effectMult += (p.talent.value2 || 1.0) - 1.0; 
+    }
 
     const activeUltimates = new Set<UltimateType>();
     if (p.equipment.weapon1?.ultimate) activeUltimates.add(p.equipment.weapon1.ultimate);

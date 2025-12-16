@@ -1,0 +1,25 @@
+
+import React from 'react';
+import { TalentType } from '../types';
+import { Crosshair, Swords, Hammer, FlaskConical, Clover, HelpCircle } from 'lucide-react';
+
+interface TalentIconProps {
+  type: TalentType | null;
+  size?: number;
+  className?: string;
+}
+
+export const TalentIcon: React.FC<TalentIconProps> = ({ type, size = 20, className = "" }) => {
+  if (!type) return <HelpCircle size={size} className={className} />;
+  
+  const props = { size, className };
+  
+  switch(type) {
+      case TalentType.SNIPER: return <Crosshair {...props} />;
+      case TalentType.FIGHTER: return <Swords {...props} />;
+      case TalentType.ARTISAN: return <Hammer {...props} />;
+      case TalentType.SCIENTIST: return <FlaskConical {...props} />;
+      case TalentType.LUCKY: return <Clover {...props} />;
+      default: return <HelpCircle {...props} />;
+  }
+};

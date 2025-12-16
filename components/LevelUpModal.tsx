@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { Item, Player, Stats, TalentType, UpgradeReward, StatUpgrade, ElementType } from '../types';
 import { RARITY_CONFIG, ELEMENT_CONFIG, REROLL_COST, ULTIMATE_CONFIG } from '../constants';
-import { ArrowRight, Star, Heart, Zap, RefreshCw, X, Coins, RotateCcw, Activity, Skull } from 'lucide-react';
+import { ArrowRight, Star, Heart, Zap, RefreshCw, X, Coins, RotateCcw, Activity, Skull, Shield } from 'lucide-react';
 import { generateRandomWeapon } from '@/systems/items/Weapon';
 import { generateRandomArmor } from '@/systems/items/Armor';
 import { ItemIcon } from './ItemIcon';
@@ -25,8 +25,7 @@ const STAT_LABELS: Record<string, string> = {
   armorOnHit: "Armor/Hit",
   shield: "Init Shield",
   ultChargeRate: "Ult Charge",
-  dodgeChance: "Dodge Chance",
-  blockChance: "Block Chance"
+  dodgeChance: "Dodge Chance"
 };
 
 const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) => {
@@ -36,12 +35,9 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
   const [rerollCount, setRerollCount] = useState(0);
   const [generationKey, setGenerationKey] = useState(0); 
 
-  const freeRerolls = useMemo(() => {
-      let count = 0;
-      if (player.equipment.armor1?.talent?.type === TalentType.LUCKY) count++;
-      if (player.equipment.armor2?.talent?.type === TalentType.LUCKY) count++;
-      return count;
-  }, [player.equipment]);
+  const freeRerolls = (player.talent?.type === TalentType.LUCKY && player.talent.value2) 
+    ? Math.round(player.talent.value2) 
+    : 0;
 
   const currentRerollCost = rerollCount < freeRerolls 
     ? 0 
@@ -156,7 +152,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                if (newVal === undefined && oldVal === undefined) return null;
 
                const label = STAT_LABELS[key] || key;
-               const isPercent = key === 'critChance' || key === 'blockChance' || key === 'dodgeChance';
+               const isPercent = key === 'critChance' || key === 'dodgeChance';
                
                const formatVal = (v: number | undefined) => {
                    if (v === undefined) return '0';
@@ -197,10 +193,10 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                </div>
            )}
 
-           {newItem.talent && (
+           {newItem.armorEnchantment && (
                <div className="pt-2 mt-2 border-t border-gray-600">
-                   <span className="text-[10px] uppercase font-bold text-blue-300 block mb-1">New Talent: {newItem.talent.type}</span>
-                   <p className="text-[10px] text-gray-300 leading-tight">{newItem.talent.description}</p>
+                   <span className="text-[10px] uppercase font-bold text-blue-300 block mb-1">{newItem.armorEnchantment.title}</span>
+                   <p className="text-[10px] text-gray-300 leading-tight">{newItem.armorEnchantment.label}</p>
                </div>
            )}
 
@@ -211,7 +207,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                </div>
            )}
 
-           {(oldItem?.talent || oldItem?.ultimate || oldItem?.enchantment) && (
+           {(oldItem?.ultimate || oldItem?.enchantment || oldItem?.armorEnchantment) && (
                <div className="pt-2 mt-2 border-t border-red-900/50">
                     {oldItem.ultimate && (
                         <div className="text-[10px] text-red-300">
@@ -223,9 +219,9 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                             <span className="font-bold">Losing Enchantment:</span> {oldItem.enchantment.label}
                         </div>
                     )}
-                    {oldItem.talent && (
+                    {oldItem.armorEnchantment && (
                         <div className="text-[10px] text-red-300">
-                            <span className="font-bold">Losing Talent:</span> {oldItem.talent.description}
+                            <span className="font-bold">Losing:</span> {oldItem.armorEnchantment.title}
                         </div>
                     )}
                </div>
@@ -414,20 +410,20 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                    )}
                    
                    {isItem && item!.ultimate && (
-                       <div className="absolute bottom-2 right-2 bg-black/60 text-yellow-400 text-xs px-2 py-1 rounded-full border border-yellow-500/50 flex items-center gap-1">
+                       <div className="absolute bottom-2 left-2 bg-black/60 text-yellow-400 text-xs px-2 py-1 rounded-full border border-yellow-500/50 flex items-center gap-1">
                            <Star size={10} fill="currentColor" /> Ultimate
                        </div>
                    )}
 
-                   {isItem && item!.talent && (
-                       <div className="absolute bottom-2 right-2 bg-blue-900/80 text-blue-200 text-xs px-2 py-1 rounded-full border border-blue-500/50 flex items-center gap-1">
-                           <Activity size={10} fill="currentColor" /> Talent
+                   {isItem && item!.enchantment && (
+                       <div className="absolute bottom-2 right-2 bg-purple-900/80 text-purple-200 text-[10px] px-2 py-0.5 rounded-full border border-purple-500/50 flex items-center gap-1">
+                           <Skull size={10} fill="currentColor" /> {item!.enchantment.label}
                        </div>
                    )}
 
-                   {isItem && item!.enchantment && (
-                       <div className="absolute bottom-8 left-2 bg-purple-900/80 text-purple-200 text-[10px] px-2 py-0.5 rounded-full border border-purple-500/50 flex items-center gap-1">
-                           <Skull size={10} fill="currentColor" /> {item!.enchantment.label}
+                   {isItem && item!.armorEnchantment && (
+                       <div className="absolute bottom-2 right-2 bg-blue-900/80 text-blue-200 text-[10px] px-2 py-0.5 rounded-full border border-blue-500/50 flex items-center gap-1">
+                           <Shield size={10} fill="currentColor" /> Res
                        </div>
                    )}
                 </div>
@@ -474,21 +470,21 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                            <span className="block text-[9px] opacity-70">Duration: {(item!.enchantment.duration / 60).toFixed(1)}s</span>
                        </div>
                    )}
+                   
+                   {isItem && item!.armorEnchantment && (
+                       <div className="mt-4 p-2 bg-blue-900/20 border border-blue-700/50 rounded text-xs text-blue-200/90">
+                           <span className="font-bold block text-blue-400 mb-1">
+                               {item!.armorEnchantment.title}
+                           </span>
+                           {item!.armorEnchantment.label}
+                       </div>
+                   )}
 
                    {isItem && item!.ultimate && (
                        <div className="mt-2 p-2 bg-yellow-900/20 border border-yellow-700/50 rounded text-xs text-yellow-200/80 italic">
                            <span className="font-bold block not-italic text-yellow-500 mb-1">
                                Ult: {item!.ultimateName}
                            </span>
-                       </div>
-                   )}
-
-                   {isItem && item!.talent && (
-                       <div className="mt-2 p-2 bg-blue-900/20 border border-blue-700/50 rounded text-xs text-blue-200/90">
-                           <span className="font-bold block text-blue-400 mb-1">
-                               {item!.talent.type}
-                           </span>
-                           {item!.talent.description}
                        </div>
                    )}
                 </div>

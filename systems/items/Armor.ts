@@ -1,6 +1,6 @@
 
-import { Item, ArmorType, Rarity, TalentType, Talent, Stats, ElementType } from '../../types';
-import { TALENT_CONFIG, RARITY_CONFIG, ARMOR_BASE_CONFIG } from '../../constants';
+import { Item, ArmorType, Rarity, Stats, ElementType, ArmorEnchantment } from '../../types';
+import { RARITY_CONFIG, ARMOR_BASE_CONFIG, ARMOR_ENCHANTMENT_CONFIG, ELEMENT_CONFIG } from '../../constants';
 import { getWeightedRandom } from '../utils';
 
 export const generateRandomArmor = (level: number): Item => {
@@ -11,7 +11,6 @@ export const generateRandomArmor = (level: number): Item => {
     const configDef = RARITY_CONFIG[rarity];
 
     const rm = configDef.statMult;
-    const rf = configDef.talentStrength;
 
     const subtype = armorTypes[Math.floor(Math.random() * armorTypes.length)];
     const armorConfig = ARMOR_BASE_CONFIG[subtype];
@@ -33,29 +32,61 @@ export const generateRandomArmor = (level: number): Item => {
         }
     }
 
-    const talentChance = configDef.talentChance;
-    let armorTalent: Talent | undefined;
+    // Generate Enchantment
+    let armorEnchantment: ArmorEnchantment | undefined;
+    
+    const keys = Object.keys(ARMOR_ENCHANTMENT_CONFIG);
+    const totalWeight = keys.reduce((sum, key) => sum + ARMOR_ENCHANTMENT_CONFIG[key].weight, 0);
+    let randWeight = Math.random() * totalWeight;
+    let selectedKey = 'NONE';
+    for (const key of keys) {
+        randWeight -= ARMOR_ENCHANTMENT_CONFIG[key].weight;
+        if (randWeight <= 0) {
+            selectedKey = key;
+            break;
+        }
+    }
 
-    if (Math.random() <= talentChance) {
-        const tType = getWeightedRandom(TALENT_CONFIG) as TalentType;
-        const config = TALENT_CONFIG[tType];
-        
-        const lerp = (range: [number, number], isInt = false) => {
-            const val = range[0] + (range[1] - range[0]) * rf;
-            return isInt ? Math.floor(val) : Number(val.toFixed(2));
-        };
-
-        const v1 = lerp(config.ranges.value1);
-        const v2 = config.ranges.value2 ? lerp(config.ranges.value2) : undefined;
-        const v3 = config.ranges.value3 ? lerp(config.ranges.value3, tType === TalentType.SNIPER) : undefined;
-
-        armorTalent = {
-            type: tType,
-            value1: v1,
-            value2: v2,
-            value3: v3,
-            description: config.description(v1, v2, v3)
-        };
+    if (selectedKey !== 'NONE') {
+        const conf = ARMOR_ENCHANTMENT_CONFIG[selectedKey];
+        if (conf.valueRange && conf.type) {
+             const value = conf.valueRange[0] + Math.random() * (conf.valueRange[1] - conf.valueRange[0]);
+             const percent = Math.round(value * 100);
+             
+             let label = '';
+             let title = '';
+             let element: ElementType | undefined;
+             
+             switch (conf.type) {
+                 case 'ELEMENTAL_RESIST':
+                     // Pick random element (excluding NONE)
+                     const elems = [ElementType.FIRE, ElementType.WATER, ElementType.GRASS, ElementType.EARTH];
+                     element = elems[Math.floor(Math.random() * elems.length)];
+                     title = `${ELEMENT_CONFIG[element].label} Ward`;
+                     label = `-${percent}% ${ELEMENT_CONFIG[element].label} Dmg`;
+                     break;
+                 case 'BURN_RESIST':
+                     title = 'Heat Shield';
+                     label = `-${percent}% Burn Dmg`;
+                     break;
+                 case 'POISON_RESIST':
+                     title = 'Antidote System';
+                     label = `-${percent}% Poison Dmg`;
+                     break;
+                 case 'STATUS_RESIST':
+                     title = 'Clear Mind';
+                     label = `-${percent}% Status Duration`;
+                     break;
+             }
+             
+             armorEnchantment = {
+                 type: conf.type,
+                 value: Number(value.toFixed(2)),
+                 element,
+                 label,
+                 title
+             };
+        }
     }
 
     return {
@@ -66,8 +97,8 @@ export const generateRandomArmor = (level: number): Item => {
         rarity,
         level,
         stats,
-        talent: armorTalent,
         element: ElementType.NONE,
+        armorEnchantment,
         durability: 100
     };
 };

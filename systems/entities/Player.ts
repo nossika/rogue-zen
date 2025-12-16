@@ -9,7 +9,7 @@ export const updatePlayerMovement = (
     keys: { [key: string]: boolean }, 
     terrain: Terrain[],
     speedBoost: number,
-    isSlowed: boolean // New Parameter
+    slowStrength: number = 0 // Changed from boolean to number (0 to 1)
 ) => {
     let dx = 0;
     let dy = 0;
@@ -35,7 +35,7 @@ export const updatePlayerMovement = (
 
     let speed = player.stats.moveSpeed;
     if (speedBoost > 0) speed *= 1.5;
-    if (isSlowed) speed *= 0.5; // Apply 50% slow
+    if (slowStrength > 0) speed *= (1.0 - slowStrength); 
     if (terrainType === 'MUD') speed *= 0.5;
 
     const targetVx = dx * speed;
@@ -80,7 +80,8 @@ export const handlePlayerDamage = (
     floatingTexts: FloatingText[],
     spawnSplatter: (x: number, y: number, color?: string) => void,
     ignoreShield: boolean = false,
-    silent: boolean = false
+    silent: boolean = false,
+    slowIntensity: number = 0.5
 ) => {
     if (timers.invincibility.current > 0 || timers.hurt.current > 0) return;
 
@@ -90,44 +91,55 @@ export const handlePlayerDamage = (
         return;
     }
 
-    const isBlocked = !ignoreShield && Math.random() <= player.stats.blockChance;
+    // Capture HP before damage
+    const startHp = player.stats.hp;
 
-    if (!isBlocked) {
-        if (ignoreShield) {
-            player.stats.hp -= damage;
-            spawnSplatter(player.x, player.y, '#ef4444'); // Always splatter on direct HP damage
-            if (!silent && damage >= 1) {
-                FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(damage)}`, '#ef4444');
-            }
-        } else {
-           const rawDmg = Math.max(1, damage - player.stats.defense);
-           if (player.stats.shield > 0) {
-               if (player.stats.shield >= rawDmg) {
-                   player.stats.shield -= rawDmg;
-                   FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#9ca3af');
-                   // No Splatter - Shield Absorbed
-               } else {
-                   const remaining = rawDmg - player.stats.shield;
-                   player.stats.shield = 0;
-                   player.stats.hp -= remaining;
-                   spawnSplatter(player.x, player.y, '#ef4444'); // Splatter on bleed-through
-                   FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#ef4444');
-               }
-           } else {
-               player.stats.hp -= rawDmg;
-               spawnSplatter(player.x, player.y, '#ef4444'); // Splatter on full HP hit
-               FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#ef4444');
-           }
-        }
-        
-        // Ultimate Charge on Damage Taken
-        player.ultimateCharge = Math.min(100, player.ultimateCharge + (ignoreShield ? damage : Math.max(1, damage - player.stats.defense)));
-
-        if (!ignoreShield) {
-            timers.invincibility.current = 30; 
-            timers.slowed.current = 30;
+    if (ignoreShield) {
+        player.stats.hp -= damage;
+        spawnSplatter(player.x, player.y, '#ef4444'); // Always splatter on direct HP damage
+        if (!silent && damage >= 1) {
+            FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(damage)}`, '#ef4444');
         }
     } else {
-        if (!silent) FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, "BLOCKED", '#94a3b8');
+       const rawDmg = Math.max(1, damage - player.stats.defense);
+       if (player.stats.shield > 0) {
+           if (player.stats.shield >= rawDmg) {
+               player.stats.shield -= rawDmg;
+               FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#9ca3af');
+               // No Splatter - Shield Absorbed
+           } else {
+               const remaining = rawDmg - player.stats.shield;
+               player.stats.shield = 0;
+               player.stats.hp -= remaining;
+               spawnSplatter(player.x, player.y, '#ef4444'); // Splatter on bleed-through
+               FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#ef4444');
+           }
+       } else {
+           player.stats.hp -= rawDmg;
+           spawnSplatter(player.x, player.y, '#ef4444'); // Splatter on full HP hit
+           FloatingTextSystem.createFloatingText(floatingTexts, player.x, player.y - 20, `${Math.round(rawDmg)}`, '#ef4444');
+       }
     }
+    
+    // Ultimate Charge Logic: Only charge if HP was lost
+    const endHp = player.stats.hp;
+    const hpLost = startHp - endHp;
+    if (hpLost > 0) {
+        player.ultimateCharge = Math.min(100, player.ultimateCharge + hpLost);
+    }
+
+    // Apply Slow / Invincibility
+    // Note: Even if ignoreShield is true (hazards), we now trigger slow and invincibility as requested
+    let finalSlowDuration = 30;
+    
+    // Apply Status Resistance
+    const armors = [player.equipment.armor1, player.equipment.armor2];
+    for (const armor of armors) {
+        if (armor && armor.armorEnchantment && armor.armorEnchantment.type === 'STATUS_RESIST') {
+            finalSlowDuration *= (1.0 - armor.armorEnchantment.value);
+        }
+    }
+
+    timers.invincibility.current = 30; 
+    timers.slowed.current = finalSlowDuration;
 };

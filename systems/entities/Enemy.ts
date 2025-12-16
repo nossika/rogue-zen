@@ -21,7 +21,6 @@ export const spawnEnemy = (
     }
 
     // DETERMINE TYPE FIRST to know dimensions for collision check
-    const tierMultiplier = 1 + (player.level * 0.15);
     let type: EnemyType = 'STANDARD';
     
     if (isBossStage) {
@@ -29,15 +28,15 @@ export const spawnEnemy = (
     } else {
         // Filter valid enemies for this stage and calculate total weight
         const validTypes = Object.entries(ENEMY_TYPES_CONFIG).filter(([key, config]) => 
-            key !== 'BOSS' && currentStage >= (config as any).minStage
+            key !== 'BOSS' && currentStage >= config.minStage
         );
 
-        const totalWeight = validTypes.reduce((sum, [_, config]) => sum + (config as any).spawnWeight, 0);
+        const totalWeight = validTypes.reduce((sum, [_, config]) => sum + config.spawnWeight, 0);
         let randomWeight = Math.random() * totalWeight;
 
         // Weighted selection
         for (const [key, config] of validTypes) {
-            randomWeight -= (config as any).spawnWeight;
+            randomWeight -= config.spawnWeight;
             if (randomWeight <= 0) {
                 type = key as EnemyType;
                 break;
@@ -46,8 +45,8 @@ export const spawnEnemy = (
     }
 
     const config = ENEMY_TYPES_CONFIG[type];
-    const width = 32 * config.sizeMult;
-    const height = 32 * config.sizeMult;
+    const width = config.radius * 2;
+    const height = config.radius * 2;
 
     let ex = 0, ey = 0;
     let attempts = 0;
@@ -124,8 +123,8 @@ export const spawnEnemy = (
         bossAbilities = shuffled.slice(0, 2);
     }
 
-    // Base max HP calculation
-    const maxHp = 20 * tierMultiplier * config.hpMult;
+    // Explicit Base max HP calculation from config
+    const maxHp = config.baseHp + (player.level * config.hpGrowth);
     
     // Iron Beetle starts with 100% Armor
     const initialArmor = type === 'IRON_BEETLE' ? maxHp : 0;
@@ -156,12 +155,11 @@ export const spawnEnemy = (
         maxHp: maxHp, 
         hp: maxHp,
         shield: initialArmor, // Shield acts as Armor
-        attack: 10 * tierMultiplier * config.attackMult,
+        attack: config.baseAttack + (player.level * config.attackGrowth),
         defense: 0,
-        moveSpeed: (1.5 + Math.random() * 1) * config.speedMult,
+        moveSpeed: config.speedMin + Math.random() * (config.speedMax - config.speedMin),
         attackSpeed: 1,
         range: type === 'BOSS' ? 400 : 30,
-        blockChance: type === 'BOSS' ? 0.3 : 0,
         dodgeChance: 0,
         knockback: 0,
         critChance: 0,
@@ -236,10 +234,9 @@ export const spawnMinion = (enemies: Enemy[], boss: Enemy, terrain: Terrain[]) =
         shield: 0,
         attack: boss.stats.attack * 0.4,
         defense: 0,
-        moveSpeed: (1 + Math.random() * 1) * config.speedMult,
+        moveSpeed: config.speedMin + Math.random() * (config.speedMax - config.speedMin),
         attackSpeed: 1,
         range: 30,
-        blockChance: 0,
         dodgeChance: 0,
         knockback: 0,
         critChance: 0,

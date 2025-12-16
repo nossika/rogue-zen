@@ -50,7 +50,7 @@ export const updateHazards = (
     dt: number,
     fireDamageAccumulatorRef: { current: number },
     spawnFloatingText: (x: number, y: number, text: string, color: string, isCrit: boolean) => void,
-    handlePlayerHit: (damage: number, ignoreShield: boolean, silent: boolean) => void,
+    handlePlayerHit: (damage: number, ignoreShield: boolean, silent: boolean, slowIntensity?: number) => void,
     spawnSplatter?: (x: number, y: number, color?: string) => void
 ) => {
     for (let i = hazards.length - 1; i >= 0; i--) {
@@ -66,7 +66,23 @@ export const updateHazards = (
                 if (h.source === 'ENEMY') {
                     const dPlayer = Math.sqrt((player.x - h.x)**2 + (player.y - h.y)**2);
                     if (dPlayer < h.radius + player.width/2) {
-                        handlePlayerHit(h.damage, false, false);
+                        
+                        // Apply Elemental Resistance for Explosions (Usually Fire or Earth/Physical)
+                        let damage = h.damage;
+                        const armors = [player.equipment.armor1, player.equipment.armor2];
+                        
+                        // Explosion hazards carry an element, check resists
+                        if (h.element !== ElementType.NONE) {
+                             for (const armor of armors) {
+                               if (armor && armor.armorEnchantment && 
+                                   armor.armorEnchantment.type === 'ELEMENTAL_RESIST' && 
+                                   armor.armorEnchantment.element === h.element) {
+                                   damage *= (1.0 - armor.armorEnchantment.value);
+                               }
+                           }
+                        }
+
+                        handlePlayerHit(damage, false, false);
                     }
                 } else if (h.source === 'PLAYER') {
                     enemies.forEach(e => {
@@ -157,7 +173,7 @@ export const updateHazards = (
             
             const playerHit = distSq < hitThreshold * hitThreshold;
 
-            const damageTick = h.damage * dt;
+            let damageTick = h.damage * dt; // Assuming h.damage is roughly damage-per-hit now that we have i-frames
 
             const centerTerrain = TerrainSystem.getTerrainAt(terrain, h.x, h.y, 1, 1);
             if ((h.type === 'FIRE' && centerTerrain === 'WATER') || 
@@ -172,13 +188,23 @@ export const updateHazards = (
                                (h.type === 'POISON' && playerTerrain === 'MUD');
 
                 if (!isSafe) {
-                    fireDamageAccumulatorRef.current += damageTick;
-                    handlePlayerHit(damageTick, true, true); 
-                    if (fireDamageAccumulatorRef.current >= 5) {
-                        const color = h.type === 'POISON' ? '#a3e635' : '#ef4444';
-                        spawnFloatingText(player.x, player.y - 30, `${Math.floor(fireDamageAccumulatorRef.current)}`, color, false);
-                        fireDamageAccumulatorRef.current = 0;
+                    
+                    // Apply Hazard Resistances
+                    const armors = [player.equipment.armor1, player.equipment.armor2];
+                    for (const armor of armors) {
+                        if (armor && armor.armorEnchantment) {
+                             if (h.type === 'FIRE' && armor.armorEnchantment.type === 'BURN_RESIST') {
+                                 damageTick *= (1.0 - armor.armorEnchantment.value);
+                             }
+                             if (h.type === 'POISON' && armor.armorEnchantment.type === 'POISON_RESIST') {
+                                 damageTick *= (1.0 - armor.armorEnchantment.value);
+                             }
+                        }
                     }
+
+                    // Directly apply hit with 25% slow and bypass shield (true)
+                    // We remove accumulator since individual hits will now show numbers due to I-frames
+                    handlePlayerHit(damageTick, true, false, 0.25);
                 }
             }
             

@@ -206,7 +206,20 @@ export const updateProjectiles = (
            const d = Math.sqrt((player.x - proj.x)**2 + (player.y - proj.y)**2);
            if (d < player.width/2 + proj.radius) {
                if (!proj.hitEnemies.has(player.id)) {
-                   onPlayerHit(proj.damage);
+                   
+                   // Check Armor Elemental Resistances
+                   let damage = proj.damage;
+                   const armors = [player.equipment.armor1, player.equipment.armor2];
+                   
+                   for (const armor of armors) {
+                       if (armor && armor.armorEnchantment && 
+                           armor.armorEnchantment.type === 'ELEMENTAL_RESIST' && 
+                           armor.armorEnchantment.element === proj.element) {
+                           damage *= (1.0 - armor.armorEnchantment.value);
+                       }
+                   }
+
+                   onPlayerHit(damage);
                    proj.hitEnemies.add(player.id);
                    projectiles.splice(i, 1);
                }

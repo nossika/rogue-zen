@@ -44,6 +44,16 @@ export interface WeaponEnchantment {
   label: string;
 }
 
+export type ArmorEnchantmentType = 'ELEMENTAL_RESIST' | 'BURN_RESIST' | 'POISON_RESIST' | 'STATUS_RESIST';
+
+export interface ArmorEnchantment {
+    type: ArmorEnchantmentType;
+    value: number; // Percentage reduction (0.5 to 0.9)
+    element?: ElementType; // Required if type is ELEMENTAL_RESIST
+    label: string; // Description text (e.g. "-50% Fire Dmg")
+    title: string; // Display Title (e.g. "Fire Ward")
+}
+
 export interface Talent {
   type: TalentType;
   value1: number; // Primary Multiplier/Value (e.g. Dmg, DefMult, Dodge)
@@ -74,8 +84,6 @@ export interface RarityConfigDefinition {
     color: string;
     statMult: number;
     weight: number;
-    talentChance: number;
-    talentStrength: number; // 0 to 1 interpolation factor
     meleeArmorTarget: number; // For melee weapon armor calculation
 }
 
@@ -84,6 +92,25 @@ export type ArmorType = 'SHIELD' | 'GLOVES' | 'BOOTS';
 
 export type EnemyType = 'STANDARD' | 'FAST' | 'TANK' | 'RANGED' | 'BOSS' | 'BOMBER' | 'INCINERATOR' | 'ZOMBIE' | 'IRON_BEETLE';
 export type BossAbility = 'INVINCIBLE_ARMOR' | 'BERSERKER' | 'HIVE_MIND' | 'BLINK' | 'SPLIT';
+
+export interface EnemyConfigDefinition {
+    minStage: number;
+    spawnWeight: number;
+    color: string;
+    
+    // Size (radius/width approx)
+    radius: number;
+
+    // Stats
+    baseHp: number;
+    hpGrowth: number; // Per player level
+    
+    baseAttack: number;
+    attackGrowth: number; // Per player level
+    
+    speedMin: number;
+    speedMax: number;
+}
 
 export type TerrainType = 'WALL' | 'WATER' | 'MUD' | 'EARTH_WALL';
 export type HazardType = 'EXPLOSION' | 'FIRE' | 'POISON';
@@ -131,7 +158,6 @@ export interface Stats {
   attackSpeed: number; // Attacks per second
   range: number;
   moveSpeed: number;
-  blockChance: number; // 0-1
   dodgeChance: number; // 0-1
   knockback: number;
   critChance: number; // 0-1
@@ -149,8 +175,8 @@ export interface Item {
   stats: Partial<Stats>;
   ultimate?: UltimateType; // Only for Weapons now
   ultimateName?: string;
-  talent?: Talent; // Only for Armor now
   enchantment?: WeaponEnchantment; // Only for Weapons now
+  armorEnchantment?: ArmorEnchantment; // Only for Armor now
   description?: string;
   level: number;
   durability: number; // 0 to 100
@@ -164,7 +190,7 @@ export interface StatUpgrade {
     healPercent?: number;
 }
 
-export type UpgradeReward = Item | StatUpgrade;
+export type UpgradeReward = Item | StatUpgrade | Talent;
 
 export interface Entity {
   id: string;
@@ -187,6 +213,7 @@ export interface Player extends Entity {
     armor1: Item | null;
     armor2: Item | null;
   };
+  talent: Talent | null; // One specialized talent slot
   permanentStats: Stats; // Tracks base stats + permanent upgrades (level ups)
   ultimateCharge: number; // 0-100
   level: number; // Current Stage Level

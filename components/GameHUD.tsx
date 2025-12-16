@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { Item, UltimateType, Stats } from '../types';
-import { Coins, User, Sword, Shield, Wrench } from 'lucide-react';
+import { Item, UltimateType, Stats, Player, Talent } from '../types';
+import { Coins, User, Sword, Shield, Wrench, Sparkles } from 'lucide-react';
 import { ItemIcon } from './ItemIcon';
 import { UltimateIcon } from './Ultimate';
+import { TalentIcon } from './TalentIcon';
 import { RARITY_CONFIG, ELEMENT_CONFIG } from '../constants';
 
 interface GameHUDProps {
@@ -21,6 +22,7 @@ interface GameHUDProps {
         activeUltimates: UltimateType[];
         stats: Stats;
         enemiesLeft: number;
+        talent: Talent | null; // Added Talent State
     };
     currentStage: number;
     isBossStage: boolean;
@@ -32,6 +34,8 @@ interface GameHUDProps {
     onClickStats: (e: React.MouseEvent) => void;
     onMouseEnterUlt: (e: React.MouseEvent) => void;
     onClickUlt: (e: React.MouseEvent) => void;
+    onMouseEnterTalent: (talent: Talent | null, e: React.MouseEvent) => void;
+    onClickTalent: (talent: Talent | null, e: React.MouseEvent) => void;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -45,7 +49,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     onMouseEnterStats,
     onClickStats,
     onMouseEnterUlt,
-    onClickUlt
+    onClickUlt,
+    onMouseEnterTalent,
+    onClickTalent
 }) => {
     const effectiveMax = Math.max(uiState.maxHp, uiState.hp + uiState.shield);
     const hpPercent = (uiState.hp / effectiveMax) * 100;
@@ -147,7 +153,24 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                             <User size={isMobile ? 16 : 20} className="text-white" />
                         </div>
                     </div>
+                    
+                    {/* Talent Slot */}
+                    <div 
+                       className="relative cursor-help"
+                       onMouseEnter={(e) => onMouseEnterTalent(uiState.talent, e)}
+                       onMouseLeave={onMouseLeaveItem}
+                       onClick={(e) => onClickTalent(uiState.talent, e)}
+                    >
+                        <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-gray-800 border-2 flex items-center justify-center relative transition-colors hover:bg-gray-700
+                           ${uiState.talent ? 'border-blue-500' : 'border-gray-600 rounded-full'}`}
+                           style={{ borderRadius: uiState.talent ? '25%' : '50%' }}
+                        >
+                            <TalentIcon type={uiState.talent?.type || null} size={isMobile ? 16 : 20} className={uiState.talent ? 'text-blue-300' : 'text-gray-600'} />
+                        </div>
+                    </div>
    
+                    <div className="w-px h-8 bg-gray-700 mx-1"></div>
+
                     {renderWeaponSlot(uiState.weapon1, <Sword size={isMobile ? 16 : 20} className="text-gray-600" />)}
                     {renderWeaponSlot(uiState.weapon2, <Sword size={isMobile ? 16 : 20} className="text-gray-600" />)}
                     {renderWeaponSlot(uiState.armor1, <Shield size={isMobile ? 16 : 20} className="text-gray-600" />)}

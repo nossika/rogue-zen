@@ -1,5 +1,5 @@
 
-import { TerrainType, Stats, Rarity, ElementType, UltimateType, TalentType, WeaponType, TalentDefinition, WeaponCategory, DebuffType, RarityConfigDefinition, UltimateDefinition, Item, ArmorType } from './types';
+import { TerrainType, Stats, Rarity, ElementType, UltimateType, TalentType, WeaponType, TalentDefinition, WeaponCategory, DebuffType, RarityConfigDefinition, UltimateDefinition, Item, ArmorType, EnemyConfigDefinition, ArmorEnchantmentType } from './types';
 
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 800;
@@ -10,12 +10,11 @@ export const INITIAL_PLAYER_STATS: Stats = {
     maxHp: 150,
     hp: 150,
     shield: 0,
-    defense: 0,
+    defense: 5,
     attack: 5,
     attackSpeed: 0.1,
     range: 10,
     moveSpeed: 2,
-    blockChance: 0,
     dodgeChance: 0,
     knockback: 2,
     critChance: 0.02,
@@ -61,32 +60,24 @@ export const RARITY_CONFIG: Record<Rarity, RarityConfigDefinition> = {
         color: '#9ca3af', // gray-400
         statMult: 1.0, 
         weight: 60,
-        talentChance: 0.2,
-        talentStrength: 0,
         meleeArmorTarget: 0.2
     },
     [Rarity.RARE]: { 
         color: '#60a5fa', // blue-400
         statMult: 1.25, 
         weight: 25,
-        talentChance: 0.5,
-        talentStrength: 0.33,
         meleeArmorTarget: 0.5
     },
     [Rarity.EPIC]: { 
         color: '#a855f7', // purple-500
         statMult: 1.5, 
         weight: 12,
-        talentChance: 0.8,
-        talentStrength: 0.66,
         meleeArmorTarget: 0.9
     },
     [Rarity.LEGENDARY]: { 
         color: '#fbbf24', // amber-400
         statMult: 2.0, 
         weight: 3,
-        talentChance: 1.0,
-        talentStrength: 1.0,
         meleeArmorTarget: 1.4
     },
 };
@@ -185,6 +176,20 @@ export const WEAPON_ENCHANTMENT_CONFIG: Record<string, WeaponEnchantmentConfigDe
     BLEED: { weight: 15, type: 'BLEED', label: 'Serrated', chanceRange: [0.2, 0.4], durationRange: [120, 240] },
 };
 
+interface ArmorEnchantmentConfigDefinition {
+    weight: number;
+    type?: ArmorEnchantmentType;
+    valueRange?: [number, number]; // Percentage range (e.g., 0.5 to 0.9)
+}
+
+export const ARMOR_ENCHANTMENT_CONFIG: Record<string, ArmorEnchantmentConfigDefinition> = {
+    NONE: { weight: 60 },
+    ELEMENTAL_RESIST: { weight: 15, type: 'ELEMENTAL_RESIST', valueRange: [0.5, 0.9] },
+    BURN_RESIST: { weight: 10, type: 'BURN_RESIST', valueRange: [0.5, 0.9] },
+    POISON_RESIST: { weight: 10, type: 'POISON_RESIST', valueRange: [0.5, 0.9] },
+    STATUS_RESIST: { weight: 10, type: 'STATUS_RESIST', valueRange: [0.3, 0.5] }
+};
+
 export const DETAIL_COLORS = {
     wood: '#854d0e',
     steel: '#94a3b8',
@@ -196,38 +201,114 @@ export const DETAIL_COLORS = {
 
 export const DEBUFF_CONFIG = {
     SLOW_SPEED_MULT: 0.5,
-    BLEED_DAMAGE_MULT: 1.25,
+    BLEED_DAMAGE_MULT: 1.5,
     BOSS_RESISTANCE: 3
 };
 
-interface EnemyConfig {
-    minStage: number;
-    spawnWeight: number;
-    sizeMult: number;
-    hpMult: number;
-    attackMult: number;
-    speedMult: number;
-    color: string;
-}
-
-export const ENEMY_TYPES_CONFIG: Record<string, EnemyConfig> = {
-    STANDARD: { minStage: 1, spawnWeight: 50, sizeMult: 1, hpMult: 1, attackMult: 1, speedMult: 1, color: '#ef4444' },
-    FAST: { minStage: 2, spawnWeight: 20, sizeMult: 0.8, hpMult: 0.6, attackMult: 0.8, speedMult: 1.5, color: '#fbbf24' },
-    TANK: { minStage: 3, spawnWeight: 15, sizeMult: 1.4, hpMult: 2.5, attackMult: 1.2, speedMult: 0.6, color: '#1e3a8a' },
-    RANGED: { minStage: 4, spawnWeight: 15, sizeMult: 0.9, hpMult: 0.8, attackMult: 1.1, speedMult: 0.9, color: '#10b981' },
-    BOMBER: { minStage: 5, spawnWeight: 10, sizeMult: 1, hpMult: 0.5, attackMult: 3, speedMult: 1.2, color: '#000000' },
-    INCINERATOR: { minStage: 8, spawnWeight: 8, sizeMult: 1.1, hpMult: 1.2, attackMult: 1.5, speedMult: 1.0, color: '#b91c1c' },
-    ZOMBIE: { minStage: 7, spawnWeight: 20, sizeMult: 1, hpMult: 1.2, attackMult: 0.8, speedMult: 0.5, color: '#65a30d' },
-    IRON_BEETLE: { minStage: 6, spawnWeight: 10, sizeMult: 1.3, hpMult: 3.0, attackMult: 0.5, speedMult: 0.4, color: '#475569' },
-    BOSS: { minStage: 0, spawnWeight: 0, sizeMult: 3, hpMult: 50, attackMult: 2, speedMult: 0.8, color: '#7e22ce' }
+export const ENEMY_TYPES_CONFIG: Record<string, EnemyConfigDefinition> = {
+    STANDARD: { 
+        minStage: 1, spawnWeight: 50, color: '#ef4444', 
+        radius: 16,
+        baseHp: 20, hpGrowth: 3, 
+        baseAttack: 10, attackGrowth: 1.4,
+        speedMin: 1, speedMax: 2
+    },
+    FAST: { 
+        minStage: 2, spawnWeight: 20, color: '#fbbf24', 
+        radius: 12,
+        baseHp: 12, hpGrowth: 1.8, 
+        baseAttack: 8, attackGrowth: 1.2,
+        speedMin: 2.2, speedMax: 3
+    },
+    TANK: { 
+        minStage: 3, spawnWeight: 15, color: '#1e3a8a', 
+        radius: 22,
+        baseHp: 50, hpGrowth: 7.5, 
+        baseAttack: 12, attackGrowth: 1.6,
+        speedMin: 0.8, speedMax: 1.5
+    },
+    RANGED: { 
+        minStage: 4, spawnWeight: 15, color: '#10b981', 
+        radius: 14,
+        baseHp: 16, hpGrowth: 2.4, 
+        baseAttack: 10, attackGrowth: 1.6,
+        speedMin: 1.3, speedMax: 2.3
+    },
+    BOMBER: { 
+        minStage: 5, spawnWeight: 10, color: '#000000', 
+        radius: 16,
+        baseHp: 10, hpGrowth: 1.5, 
+        baseAttack: 24, attackGrowth: 3,
+        speedMin: 1.5, speedMax: 2
+    },
+    INCINERATOR: { 
+        minStage: 8, spawnWeight: 8, color: '#b91c1c', 
+        radius: 18,
+        baseHp: 24, hpGrowth: 3.6, 
+        baseAttack: 12, attackGrowth: 2,
+        speedMin: 1.5, speedMax: 2
+    },
+    ZOMBIE: { 
+        minStage: 7, spawnWeight: 20, color: '#65a30d', 
+        radius: 16,
+        baseHp: 24, hpGrowth: 3.6, 
+        baseAttack: 10, attackGrowth: 1.2,
+        speedMin: 1.5, speedMax: 2.8
+    },
+    IRON_BEETLE: { 
+        minStage: 6, spawnWeight: 10, color: '#475569', 
+        radius: 20,
+        baseHp: 60, hpGrowth: 9, 
+        baseAttack: 6, attackGrowth: 0.75,
+        speedMin: 1, speedMax: 1.8
+    },
+    BOSS: { 
+        minStage: 0, spawnWeight: 0, color: '#7e22ce', 
+        radius: 48,
+        baseHp: 600, hpGrowth: 100, 
+        baseAttack: 10, attackGrowth: 2.5,
+        speedMin: 1.2, speedMax: 2
+    }
 };
 
 export const TALENT_CONFIG: Record<TalentType, TalentDefinition> = {
-    [TalentType.SNIPER]: { weight: 1, ranges: { value1: [1.1, 1.3], value2: [1.1, 1.2], value3: [10, 20] }, description: (v1: number) => `+${Math.round((v1-1)*100)}% Range` },
-    [TalentType.FIGHTER]: { weight: 1, ranges: { value1: [1.1, 1.2], value2: [1.1, 1.2], value3: [1.1, 1.2] }, description: (v1: number) => `+${Math.round((v1-1)*100)}% Atk Speed` },
-    [TalentType.ARTISAN]: { weight: 1, ranges: { value1: [1.1, 1.3], value2: [0.1, 0.3] }, description: (v1: number) => `+${Math.round((v1-1)*100)}% Defense` },
-    [TalentType.SCIENTIST]: { weight: 1, ranges: { value1: [1.1, 1.3], value2: [1.1, 1.2] }, description: (v1: number) => `+${Math.round((v1-1)*100)}% Ult Charge` },
-    [TalentType.LUCKY]: { weight: 0.5, ranges: { value1: [0.05, 0.15] }, description: (v1: number) => `+${Math.round(v1*100)}% Dodge` },
+    [TalentType.SNIPER]: { 
+        weight: 1, 
+        ranges: { value1: [1.1, 1.3], value2: [1.1, 1.5], value3: [10, 20] }, 
+        description: (v1: number, v2?: number, v3?: number) => 
+            `+${Math.round((v1-1)*100)}% Ranged Range` + 
+            (v2 ? `\n+${Math.round((v2-1)*100)}% Ranged Damage` : '') + 
+            (v3 ? `\n+${Math.round(v3)} Ranged Knockback` : '')
+    },
+    [TalentType.FIGHTER]: { 
+        weight: 1, 
+        ranges: { value1: [1.1, 1.3], value2: [1.1, 1.5], value3: [1.1, 1.3] }, 
+        description: (v1: number, v2?: number, v3?: number) => 
+            `+${Math.round((v1-1)*100)}% Melee Speed` + 
+            (v2 ? `\n+${Math.round((v2-1)*100)}% Melee Damage` : '') + 
+            (v3 ? `\n+${Math.round(((v3 || 1)-1)*100)}% Melee Shield Gain` : '')
+    },
+    [TalentType.ARTISAN]: { 
+        weight: 1, 
+        ranges: { value1: [1.1, 1.5], value2: [0.5, 1] }, 
+        description: (v1: number, v2?: number) => 
+            `+${Math.round((v1-1)*100)}% Total Defense` +
+            (v2 ? `\n-${Math.round(v2*100)}% Durability Loss` : '')
+    },
+    [TalentType.SCIENTIST]: { 
+        weight: 1, 
+        ranges: { value1: [1.1, 1.3], value2: [1.2, 1.4] }, 
+        description: (v1: number, v2?: number) => 
+            `+${Math.round((v1-1)*100)}% Ult Charge Rate` + 
+            (v2 ? `\n+${Math.round((v2-1)*100)}% Ult Effectiveness` : '')
+    },
+    [TalentType.LUCKY]: { 
+        weight: 0.5, 
+        ranges: { value1: [0.05, 0.15], value2: [1, 2] }, 
+        description: (v1: number, v2?: number) => 
+            `+${Math.round(v1*100)}% Dodge Chance` +
+            (v2 ? `\n+${Math.round(v2)} Free Rerolls` : '')
+    },
 };
 
 export const ENEMIES_PER_STAGE_BASE = 10;

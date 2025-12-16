@@ -1,12 +1,13 @@
 
 import React from 'react';
-import { Item, UltimateType, Stats } from '../types';
+import { Item, UltimateType, Stats, Talent } from '../types';
 import { RARITY_CONFIG, ELEMENT_CONFIG, ULTIMATE_CONFIG } from '../constants';
 import { UltimateIcon } from './Ultimate';
+import { TalentIcon } from './TalentIcon';
 
 interface TooltipData {
-  type: 'ITEM' | 'ULTIMATE' | 'STATS';
-  content: Item | UltimateType[] | Stats;
+  type: 'ITEM' | 'ULTIMATE' | 'STATS' | 'TALENT';
+  content: Item | UltimateType[] | Stats | Talent;
   x: number;
   y: number;
 }
@@ -68,7 +69,6 @@ export const GameTooltip: React.FC<GameTooltipProps> = ({ tooltip, onClose }) =>
                               {item.stats.shield && <div className="flex justify-between"><span className="text-gray-400">Init Shield</span> <span className="text-cyan-400">+{item.stats.shield}</span></div>}
                               {item.stats.moveSpeed && <div className="flex justify-between"><span className="text-gray-400">Move Spd</span> <span className="text-yellow-400">+{item.stats.moveSpeed.toFixed(1)}</span></div>}
                               {item.stats.ultChargeRate && <div className="flex justify-between"><span className="text-gray-400">Ult Charge</span> <span className="text-yellow-400">+{item.stats.ultChargeRate.toFixed(1)}/s</span></div>}
-                              {item.stats.blockChance !== undefined && <div className="flex justify-between"><span className="text-gray-400">Block Chance</span> <span className="text-green-400">+{Math.round(item.stats.blockChance * 100)}%</span></div>}
                               {item.stats.dodgeChance !== undefined && item.stats.dodgeChance > 0 && <div className="flex justify-between"><span className="text-gray-400">Dodge Chance</span> <span className="text-green-400">+{Math.round(item.stats.dodgeChance * 100)}%</span></div>}
                           </div>
                           {item.ultimate && (
@@ -85,10 +85,12 @@ export const GameTooltip: React.FC<GameTooltipProps> = ({ tooltip, onClose }) =>
                                   </span>
                               </div>
                           )}
-                          {item.talent && (
+                          {item.armorEnchantment && (
                               <div className="bg-blue-900/30 p-2 rounded text-[10px] border border-blue-700/50 mt-1">
-                                  <span className="text-blue-400 font-bold block mb-1">TALENT: {item.talent.type}</span>
-                                  <span className="text-gray-300">{item.talent.description}</span>
+                                  <span className="text-blue-400 font-bold block mb-1 uppercase">{item.armorEnchantment.title}</span>
+                                  <span className="text-gray-300">
+                                      {item.armorEnchantment.label}
+                                  </span>
                               </div>
                           )}
                       </>
@@ -109,7 +111,6 @@ export const GameTooltip: React.FC<GameTooltipProps> = ({ tooltip, onClose }) =>
                                  <div className="flex justify-between"><span className="text-gray-400">Range</span><span className="text-purple-400 font-mono">{stats.range}</span></div>
                                  <div className="flex justify-between"><span className="text-gray-400">Knockback</span><span className="text-orange-400 font-mono">{stats.knockback}</span></div>
                                  <div className="flex justify-between"><span className="text-gray-400">Armor/Hit</span><span className="text-cyan-400 font-mono">{stats.armorOnHit.toFixed(2)}</span></div>
-                                 <div className="flex justify-between"><span className="text-gray-400">Block Chance</span><span className="text-green-400 font-mono">{(stats.blockChance * 100).toFixed(0)}%</span></div>
                                  <div className="flex justify-between"><span className="text-gray-400">Dodge Chance</span><span className="text-green-400 font-mono">{(stats.dodgeChance * 100).toFixed(0)}%</span></div>
                                  <div className="flex justify-between"><span className="text-gray-400">Ult Charge</span><span className="text-yellow-400 font-mono">{stats.ultChargeRate.toFixed(1)}/s</span></div>
                                </>
@@ -117,6 +118,24 @@ export const GameTooltip: React.FC<GameTooltipProps> = ({ tooltip, onClose }) =>
                        })()}
                    </div>
               </>
+            ) : tooltip.type === 'TALENT' ? (
+                (() => {
+                    const talent = tooltip.content as Talent;
+                    return (
+                        <>
+                           <div className="flex items-center gap-2 border-b border-gray-700 pb-2 mb-2">
+                               <TalentIcon type={talent.type} size={24} className="text-blue-400" />
+                               <div>
+                                   <div className="font-bold text-blue-200">{talent.type}</div>
+                                   <div className="text-[10px] text-gray-400">Active Talent</div>
+                               </div>
+                           </div>
+                           <p className="text-gray-300 leading-relaxed whitespace-pre-line">
+                               {talent.description}
+                           </p>
+                        </>
+                    )
+                })()
             ) : (
                 <>
                   <div className="font-bold text-sm text-yellow-400 border-b border-gray-700 pb-2 mb-2">Active Ultimate Skills</div>

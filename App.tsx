@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Game from './components/Game';
 import LevelUpModal from './components/LevelUpModal';
+import TalentModal from './components/TalentModal';
 import { Player, UpgradeReward, GameAssets } from './types';
 import { Play, Pause, Skull, RotateCcw, HelpCircle, X, Keyboard, Swords, ArrowRight, Home } from 'lucide-react';
 import { DEFAULT_PLAYER_SPRITE, DEFAULT_ENEMY_SPRITE } from './defaultAssets';
@@ -90,7 +91,6 @@ const App: React.FC = () => {
   };
 
   // Wrapper style for forced landscape
-  // If Portrait: Rotate 90deg and swap W/H to fit the screen
   const containerStyle: React.CSSProperties = isPortrait ? {
     width: `${dimensions.height}px`, 
     height: `${dimensions.width}px`,
@@ -182,11 +182,19 @@ const App: React.FC = () => {
 
         {/* Overlays */}
         {gameState === 'STAGE_CLEAR' && playerSnapshot && (
-          <LevelUpModal 
-            level={currentStage} 
-            player={playerSnapshot}
-            onSelect={handleUpgradeSelect} 
-          />
+          // If Boss Stage (every 6 levels), show TalentModal, otherwise standard LevelUp
+          (currentStage % 6 === 0) ? (
+            <TalentModal 
+              player={playerSnapshot} 
+              onSelect={handleUpgradeSelect} 
+            />
+          ) : (
+            <LevelUpModal 
+              level={currentStage} 
+              player={playerSnapshot}
+              onSelect={handleUpgradeSelect} 
+            />
+          )
         )}
 
         {gameState === 'PAUSED' && !showHelp && (
@@ -302,8 +310,7 @@ const App: React.FC = () => {
                                 <ul className="list-disc pl-5 space-y-2 text-sm">
                                     <li>Prioritize <strong className="text-yellow-400">Gold</strong> to reroll for better gear.</li>
                                     <li>Match your weapon element to the enemies for massive damage.</li>
-                                    <li>Use <strong className="text-blue-400">Talents</strong> on Armor to buff your weapon type (Sniper/Fighter).</li>
-                                    <li>Watch out for <strong className="text-purple-400">Bosses</strong> every 6 stages!</li>
+                                    <li>Defeating <strong className="text-purple-400">Bosses</strong> (every 6 stages) grants powerful <strong>Talents</strong>.</li>
                                 </ul>
                             </section>
                         </div>

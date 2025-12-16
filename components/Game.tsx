@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, FloatingText, Terrain, Hazard, HazardType, GoldDrop, UpgradeReward, Particle, SpatialHashGrid, ElementType } from '../types';
+import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, FloatingText, Terrain, Hazard, HazardType, GoldDrop, UpgradeReward, Particle, SpatialHashGrid, ElementType, Talent } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, INITIAL_PLAYER_WEAPON, GOLD_CONFIG } from '../constants';
 
 // Sub-components
@@ -44,8 +44,8 @@ interface GameProps {
 }
 
 interface TooltipData {
-  type: 'ITEM' | 'ULTIMATE' | 'STATS';
-  content: Item | UltimateType[] | Stats;
+  type: 'ITEM' | 'ULTIMATE' | 'STATS' | 'TALENT';
+  content: Item | UltimateType[] | Stats | Talent;
   x: number;
   y: number;
 }
@@ -83,6 +83,7 @@ const Game: React.FC<GameProps> = ({
       armor1: null,
       armor2: null 
     },
+    talent: null,
     ultimateCharge: 0,
     level: 1,
     gold: initialGold
@@ -128,6 +129,7 @@ const Game: React.FC<GameProps> = ({
   const slowedTimerRef = useRef<number>(0); 
   const speedBoostRef = useRef<number>(0);
   const omniForceRef = useRef<number>(0); 
+  const slowPowerRef = useRef<number>(0.5);
 
   const [uiState, setUiState] = useState({
     hp: 100,
@@ -142,7 +144,8 @@ const Game: React.FC<GameProps> = ({
     armor2: null as Item | null,
     hasUltimate: false,
     activeUltimates: [] as UltimateType[],
-    stats: { ...INITIAL_PLAYER_STATS }
+    stats: { ...INITIAL_PLAYER_STATS },
+    talent: null as Talent | null
   });
   
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
@@ -227,9 +230,13 @@ const Game: React.FC<GameProps> = ({
     const p = playerRef.current;
 
     if (upgradeChosen) {
-      const isItem = 'rarity' in upgradeChosen;
-      
-      if (isItem) {
+      if ('type' in upgradeChosen && 'value1' in upgradeChosen) {
+          // It's a Talent
+          p.talent = upgradeChosen as Talent;
+          spawnFloatingText(p.x, p.y - 40, `TALENT: ${p.talent.type}`, '#60a5fa');
+      } 
+      else if ('rarity' in upgradeChosen) {
+        // It's an Item
         const item = upgradeChosen as Item;
         if (item.type === 'WEAPON') {
            if (item._targetSlot === 'weapon1') {
@@ -256,6 +263,7 @@ const Game: React.FC<GameProps> = ({
            }
         }
       } else {
+         // It's a Stat Upgrade
          const upgrade = upgradeChosen as any; 
          
          if (upgrade.healPercent) {
@@ -286,10 +294,12 @@ const Game: React.FC<GameProps> = ({
       HazardSystem.createHazard(hazardsRef.current, x, y, radius, damage, type, source, element, critChance, knockback);
   };
 
-  const handlePlayerHit = (damage: number, ignoreShield = false, silent = false) => {
+  const handlePlayerHit = (damage: number, ignoreShield = false, silent = false, slowIntensity = 0.5) => {
       if (invincibilityRef.current <= 0 && hurtTimerRef.current <= 0) {
           AudioSystem.playDamage();
       }
+
+      slowPowerRef.current = slowIntensity;
 
       PlayerSystem.handlePlayerDamage(
           playerRef.current,
@@ -298,7 +308,8 @@ const Game: React.FC<GameProps> = ({
           floatingTextsRef.current,
           spawnSplatter,
           ignoreShield,
-          silent
+          silent,
+          slowIntensity
       );
   };
 
@@ -344,7 +355,7 @@ const Game: React.FC<GameProps> = ({
       // 3. Update Entities
       const p = playerRef.current;
 
-      PlayerSystem.updatePlayerMovement(p, keysRef.current, terrainRef.current, speedBoostRef.current, slowedTimerRef.current > 0);
+      PlayerSystem.updatePlayerMovement(p, keysRef.current, terrainRef.current, speedBoostRef.current, slowedTimerRef.current > 0 ? slowPowerRef.current : 0);
       
       EnemySystem.updateEnemies(
           enemiesRef.current, 
@@ -414,18 +425,27 @@ const Game: React.FC<GameProps> = ({
                  const remainingNonMinions = enemiesRef.current.filter(en => !en.isMinion && !en.dead).length;
                  const isLastEnemy = remainingNonMinions === 0;
 
-                 AudioSystem.playKill();
                  if (e.type === 'BOSS') {
+                     AudioSystem.playKill(); // Boom
                      const drops = LootSystem.spawnGold(terrainRef.current, GOLD_CONFIG.BOSS.VALUE);
                      
                      // Force auto-pickup if it's the last enemy OR if it's a boss stage (where boss is the primary target)
-                    drops.forEach(d => {
-                        p.gold += d.amount;
-                        spawnFloatingText(p.x, p.y - 40, `+${d.amount} Gold`, '#fbbf24');
-                        AudioSystem.playGoldPickup();
-                    });
+                     if (isLastEnemy || stageInfoRef.current.isBossStage) {
+                        drops.forEach(d => {
+                            p.gold += d.amount;
+                            spawnFloatingText(p.x, p.y - 40, `+${d.amount} Gold`, '#fbbf24');
+                            AudioSystem.playGoldPickup();
+                        });
+                     } else {
+                        drops.forEach(d => {
+                           d.x = e.x + (Math.random()*40-20);
+                           d.y = e.y + (Math.random()*40-20);
+                           goldDropsRef.current.push(d);
+                        });
+                     }
                  } else {
                      if (!e.isMinion) { // Minions do not drop gold
+                        AudioSystem.playKill();
                         if (Math.random() < GOLD_CONFIG.ENEMY.CHANCE) {
                             const drops = LootSystem.spawnGold(terrainRef.current, GOLD_CONFIG.ENEMY.VALUE);
                             
@@ -443,6 +463,9 @@ const Game: React.FC<GameProps> = ({
                             });
                             }
                         }
+                     } else {
+                         // Simple kill sound for minions
+                         AudioSystem.playKill();
                      }
                  }
             }
@@ -476,7 +499,7 @@ const Game: React.FC<GameProps> = ({
 
       if (stageClearTimerRef.current > 0) {
            stageClearTimerRef.current++;
-           if (stageClearTimerRef.current > 90) { // 1.5 second delay
+           if (stageClearTimerRef.current > 60) { // 1 second delay
                stageInfoRef.current.stageCleared = true;
                onStageClearWrapper();
                stageClearTimerRef.current = 0;
@@ -528,7 +551,8 @@ const Game: React.FC<GameProps> = ({
              armor2: p.equipment.armor2,
              hasUltimate: activeUlts.length > 0,
              activeUltimates: activeUlts,
-             stats: p.stats
+             stats: p.stats,
+             talent: p.talent
           });
       }
 
@@ -559,6 +583,17 @@ const Game: React.FC<GameProps> = ({
       setTooltip({
           type: 'STATS',
           content: playerRef.current.stats,
+          x: Math.min(e.clientX, window.innerWidth - 260),
+          y: e.clientY + 20
+      });
+  };
+
+  const handleTalentClick = (talent: Talent | null, e: React.MouseEvent) => {
+      if (!talent) return;
+      e.stopPropagation();
+      setTooltip({
+          type: 'TALENT',
+          content: talent,
           x: Math.min(e.clientX, window.innerWidth - 260),
           y: e.clientY + 20
       });
@@ -595,13 +630,15 @@ const Game: React.FC<GameProps> = ({
             currentStage={currentStage}
             isBossStage={stageInfoRef.current.isBossStage}
             isMobile={isMobile}
-            onMouseEnterItem={() => {}} // Tooltips on click mainly for touch support
+            onMouseEnterItem={() => {}} 
             onMouseLeaveItem={() => {}}
             onClickItem={handleItemClick}
             onMouseEnterStats={() => {}}
             onClickStats={handleStatsClick}
             onMouseEnterUlt={() => {}}
             onClickUlt={handleUltClick}
+            onMouseEnterTalent={() => {}}
+            onClickTalent={handleTalentClick}
         />
 
         <UltimateButton 

@@ -1,5 +1,5 @@
 
-import { Item, Player, Enemy, Projectile, Rarity, ElementType, TalentType } from '../../types';
+import { Item, Player, Enemy, Projectile, ElementType, TalentType } from '../../types';
 import { WEAPON_BASE_CONFIG, ELEMENT_CONFIG } from '../../constants';
 import { AudioSystem } from '../core/Audio';
 
@@ -27,9 +27,8 @@ export const fireWeapon = (
     let knockbackAdd = 0;
     let armorOnHitMult = 1.0;
 
-    const checkTalent = (item: Item | null) => {
-        if (!item || !item.talent) return;
-        const t = item.talent;
+    if (player.talent) {
+        const t = player.talent;
         if (t.type === TalentType.SNIPER && isRanged) {
             rangeMult *= t.value1;
             dmgMult *= (t.value2 || 1);
@@ -39,10 +38,7 @@ export const fireWeapon = (
             dmgMult *= (t.value2 || 1);
             armorOnHitMult *= (t.value3 || 1);
         }
-    };
-
-    checkTalent(player.equipment.armor1);
-    checkTalent(player.equipment.armor2);
+    }
 
     const weaponAtk = weapon.stats.attack || config.baseStats.attack;
     const weaponSpeed = weapon.stats.attackSpeed || config.baseStats.attackSpeed;
