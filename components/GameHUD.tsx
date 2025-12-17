@@ -163,9 +163,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                     >
                         <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-gray-800 border-2 flex items-center justify-center relative transition-colors hover:bg-gray-700
                            ${uiState.talent ? 'border-blue-500' : 'border-gray-600 rounded-full'}`}
-                           style={{ borderRadius: uiState.talent ? '25%' : '50%' }}
+                           style={{ 
+                               borderRadius: uiState.talent ? '25%' : '50%',
+                               borderColor: uiState.talent ? RARITY_CONFIG[uiState.talent.rarity].color : undefined
+                           }}
                         >
-                            <TalentIcon type={uiState.talent?.type || null} size={isMobile ? 16 : 20} className={uiState.talent ? 'text-blue-300' : 'text-gray-600'} />
+                            <TalentIcon type={uiState.talent?.type || null} size={isMobile ? 16 : 20} className={uiState.talent ? 'text-white' : 'text-gray-600'} />
                         </div>
                     </div>
    

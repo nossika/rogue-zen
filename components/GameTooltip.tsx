@@ -126,8 +126,8 @@ export const GameTooltip: React.FC<GameTooltipProps> = ({ tooltip, onClose }) =>
                            <div className="flex items-center gap-2 border-b border-gray-700 pb-2 mb-2">
                                <TalentIcon type={talent.type} size={24} className="text-blue-400" />
                                <div>
-                                   <div className="font-bold text-blue-200">{talent.type}</div>
-                                   <div className="text-[10px] text-gray-400">Active Talent</div>
+                                   <div className="font-bold" style={{ color: RARITY_CONFIG[talent.rarity]?.color }}>{talent.type}</div>
+                                   <div className="text-[10px] text-gray-400 font-bold uppercase">{talent.rarity} Talent</div>
                                </div>
                            </div>
                            <p className="text-gray-300 leading-relaxed whitespace-pre-line">

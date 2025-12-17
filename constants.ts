@@ -1,5 +1,5 @@
 
-import { TerrainType, Stats, Rarity, ElementType, UltimateType, TalentType, WeaponType, TalentDefinition, WeaponCategory, DebuffType, RarityConfigDefinition, UltimateDefinition, Item, ArmorType, EnemyConfigDefinition, ArmorEnchantmentType } from './types';
+import { TerrainType, Stats, Rarity, ElementType, UltimateType, TalentType, WeaponType, TalentDefinition, WeaponCategory, DebuffType, RarityConfigDefinition, UltimateDefinition, Item, ArmorType, EnemyConfigDefinition, ArmorEnchantmentType, Range, Percentage, Frame } from './types';
 
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 800;
@@ -58,27 +58,31 @@ export const GOLD_CONFIG = {
 export const RARITY_CONFIG: Record<Rarity, RarityConfigDefinition> = {
     [Rarity.COMMON]: { 
         color: '#9ca3af', // gray-400
-        statMult: 1.0, 
         weight: 60,
-        meleeArmorTarget: 0.2
+        range: [0, 0.4],
+        ultimateChance: 0,
+        enchantmentChance: 0.1
     },
     [Rarity.RARE]: { 
         color: '#60a5fa', // blue-400
-        statMult: 1.25, 
         weight: 25,
-        meleeArmorTarget: 0.5
+        range: [0.35, 0.65],
+        ultimateChance: 0.1,
+        enchantmentChance: 0.3
     },
     [Rarity.EPIC]: { 
         color: '#a855f7', // purple-500
-        statMult: 1.5, 
         weight: 12,
-        meleeArmorTarget: 0.9
+        range: [0.6, 0.85],
+        ultimateChance: 0.4,
+        enchantmentChance: 0.6
     },
     [Rarity.LEGENDARY]: { 
         color: '#fbbf24', // amber-400
-        statMult: 2.0, 
         weight: 3,
-        meleeArmorTarget: 1.4
+        range: [0.8, 1.0],
+        ultimateChance: 0.9,
+        enchantmentChance: 1.0
     },
 };
 
@@ -111,7 +115,7 @@ interface WeaponConfig {
         range: number;
         attackSpeed: number;
         knockback: number;
-        critChance: number;
+        critChance: Percentage;
         armorOnHit: number;
     };
     color: string;
@@ -124,7 +128,7 @@ export const WEAPON_BASE_CONFIG: Record<string, WeaponConfig> = {
     DAGGER: { name: 'Dagger', category: 'MELEE', baseStats: { attack: 8, range: 40, attackSpeed: 2.5, knockback: 5, critChance: 0.25, armorOnHit: 0 }, color: '#475569', penetrate: false },
     PISTOL: { name: 'Pistol', category: 'RANGED', baseStats: { attack: 12, range: 300, attackSpeed: 1.5, knockback: 2, critChance: 0.1, armorOnHit: 0 }, color: '#d1d5db', penetrate: false },
     SPEAR: { name: 'Spear', category: 'MELEE', baseStats: { attack: 18, range: 80, attackSpeed: 1.0, knockback: 10, critChance: 0.1, armorOnHit: 0 }, color: '#9ca3af', penetrate: true },
-    SNIPER: { name: 'Sniper', category: 'RANGED', baseStats: { attack: 40, range: 600, attackSpeed: 0.5, knockback: 40, critChance: 0.4, armorOnHit: 0 }, color: '#1f293b', penetrate: true },
+    SNIPER: { name: 'Sniper', category: 'RANGED', baseStats: { attack: 40, range: 600, attackSpeed: 0.5, knockback: 40, critChance: 0.4, armorOnHit: 0 }, color: '#1f293b', penetrate: false },
     BOW: { name: 'Bow', category: 'RANGED', baseStats: { attack: 14, range: 250, attackSpeed: 1.8, knockback: 5, critChance: 0.15, armorOnHit: 0 }, color: '#a855f7', penetrate: false },
     BOMB: { name: 'Bomb', category: 'THROWN', baseStats: { attack: 30, range: 250, attackSpeed: 0.6, knockback: 30, critChance: 0, armorOnHit: 0 }, color: '#000000', penetrate: false },
 };
@@ -165,8 +169,8 @@ interface WeaponEnchantmentConfigDefinition {
     weight: number;
     type?: DebuffType;
     label?: string;
-    chanceRange?: [number, number];
-    durationRange?: [number, number];
+    chanceRange?: Range<Percentage>;
+    durationRange?: Range<Frame>;
 }
 
 export const WEAPON_ENCHANTMENT_CONFIG: Record<string, WeaponEnchantmentConfigDefinition> = {
@@ -179,7 +183,7 @@ export const WEAPON_ENCHANTMENT_CONFIG: Record<string, WeaponEnchantmentConfigDe
 interface ArmorEnchantmentConfigDefinition {
     weight: number;
     type?: ArmorEnchantmentType;
-    valueRange?: [number, number]; // Percentage range (e.g., 0.5 to 0.9)
+    valueRange?: Range<Percentage>; 
 }
 
 export const ARMOR_ENCHANTMENT_CONFIG: Record<string, ArmorEnchantmentConfigDefinition> = {
@@ -218,48 +222,48 @@ export const ENEMY_TYPES_CONFIG: Record<string, EnemyConfigDefinition> = {
         radius: 12,
         baseHp: 12, hpGrowth: 1.8, 
         baseAttack: 8, attackGrowth: 1.2,
-        speedMin: 2.2, speedMax: 3
+        speedMin: 2.2, speedMax: 2.8
     },
     TANK: { 
         minStage: 3, spawnWeight: 15, color: '#1e3a8a', 
         radius: 22,
         baseHp: 50, hpGrowth: 7.5, 
         baseAttack: 12, attackGrowth: 1.6,
-        speedMin: 0.8, speedMax: 1.5
+        speedMin: 0.6, speedMax: 1.4
     },
     RANGED: { 
         minStage: 4, spawnWeight: 15, color: '#10b981', 
         radius: 14,
         baseHp: 16, hpGrowth: 2.4, 
         baseAttack: 10, attackGrowth: 1.6,
-        speedMin: 1.3, speedMax: 2.3
+        speedMin: 1.2, speedMax: 2
     },
     BOMBER: { 
         minStage: 5, spawnWeight: 10, color: '#000000', 
         radius: 16,
         baseHp: 10, hpGrowth: 1.5, 
-        baseAttack: 24, attackGrowth: 3,
-        speedMin: 1.5, speedMax: 2
+        baseAttack: 18, attackGrowth: 2,
+        speedMin: 1.4, speedMax: 1.8
     },
     INCINERATOR: { 
         minStage: 8, spawnWeight: 8, color: '#b91c1c', 
         radius: 18,
         baseHp: 24, hpGrowth: 3.6, 
-        baseAttack: 12, attackGrowth: 2,
-        speedMin: 1.5, speedMax: 2
+        baseAttack: 10, attackGrowth: 2,
+        speedMin: 1.4, speedMax: 2
     },
     ZOMBIE: { 
         minStage: 7, spawnWeight: 20, color: '#65a30d', 
         radius: 16,
         baseHp: 24, hpGrowth: 3.6, 
-        baseAttack: 10, attackGrowth: 1.2,
-        speedMin: 1.5, speedMax: 2.8
+        baseAttack: 10, attackGrowth: 1.8,
+        speedMin: 1.6, speedMax: 2.8
     },
     IRON_BEETLE: { 
         minStage: 6, spawnWeight: 10, color: '#475569', 
         radius: 20,
         baseHp: 60, hpGrowth: 9, 
-        baseAttack: 6, attackGrowth: 0.75,
+        baseAttack: 6, attackGrowth: 1,
         speedMin: 1, speedMax: 1.8
     },
     BOSS: { 
@@ -274,19 +278,19 @@ export const ENEMY_TYPES_CONFIG: Record<string, EnemyConfigDefinition> = {
 export const TALENT_CONFIG: Record<TalentType, TalentDefinition> = {
     [TalentType.SNIPER]: { 
         weight: 1, 
-        ranges: { value1: [1.1, 1.3], value2: [1.1, 1.5], value3: [10, 20] }, 
+        ranges: { value1: [1.1, 1.3], value2: [0.5, 1.0], value3: [10, 20] }, 
         description: (v1: number, v2?: number, v3?: number) => 
             `+${Math.round((v1-1)*100)}% Ranged Range` + 
-            (v2 ? `\n+${Math.round((v2-1)*100)}% Ranged Damage` : '') + 
+            (v2 ? `\n${Math.round(v2*100)}% Pierce Chance` : '') + 
             (v3 ? `\n+${Math.round(v3)} Ranged Knockback` : '')
     },
     [TalentType.FIGHTER]: { 
         weight: 1, 
-        ranges: { value1: [1.1, 1.3], value2: [1.1, 1.5], value3: [1.1, 1.3] }, 
+        ranges: { value1: [1.1, 1.3], value2: [1.1, 1.5], value3: [1.5, 3.0] }, 
         description: (v1: number, v2?: number, v3?: number) => 
             `+${Math.round((v1-1)*100)}% Melee Speed` + 
             (v2 ? `\n+${Math.round((v2-1)*100)}% Melee Damage` : '') + 
-            (v3 ? `\n+${Math.round(((v3 || 1)-1)*100)}% Melee Shield Gain` : '')
+            (v3 ? `\n+${Math.round(((v3 || 1)-1)*100)}% Shield on Hit` : '')
     },
     [TalentType.ARTISAN]: { 
         weight: 1, 

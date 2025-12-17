@@ -1,5 +1,6 @@
 
-import { Projectile, Player, Enemy, Terrain, ElementType, HazardType, SpatialHashGrid } from '../../types';
+import { Projectile, Player, Enemy, Terrain, ElementType, HazardType } from '../../types';
+import { SpatialHashGrid } from '../core/SpatialHashGrid';
 import { checkRectOverlap, getElementalMultiplier } from '../utils';
 import { getTerrainAt } from '../world/Terrain';
 import { ELEMENT_CONFIG, DEBUFF_CONFIG } from '../../constants';

@@ -1,5 +1,6 @@
 
-import { Enemy, EnemyType, GameAssets, Terrain, Player, Projectile, ElementType, BossAbility, SpatialHashGrid, HazardType, DebuffType } from '../../types';
+import { Enemy, EnemyType, GameAssets, Terrain, Player, Projectile, ElementType, BossAbility, HazardType, DebuffType } from '../../types';
+import { SpatialHashGrid } from '../core/SpatialHashGrid';
 import { MAP_WIDTH, MAP_HEIGHT, ENEMY_TYPES_CONFIG, DETAIL_COLORS, ELEMENT_CONFIG, DEBUFF_CONFIG } from '../../constants';
 import { checkRectOverlap } from '../utils';
 

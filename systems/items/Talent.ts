@@ -1,7 +1,7 @@
 
-import { Player, TalentType, Talent } from '../../types';
-import { TALENT_CONFIG } from '../../constants';
-import { getWeightedRandom } from '../utils';
+import { Player, TalentType, Talent, Rarity } from '../../types';
+import { TALENT_CONFIG, RARITY_CONFIG } from '../../constants';
+import { getWeightedRandom, calculateRarityValue } from '../utils';
 
 export const calculatePlayerStats = (player: Player) => {
     const p = player;
@@ -72,27 +72,33 @@ export const calculateDurabilityLoss = (player: Player, startHp: number, endHp: 
 };
 
 export const generateRandomTalent = (): Talent => {
+    // 1. Determine Rarity
+    const rarity = getWeightedRandom(RARITY_CONFIG) as Rarity;
+    const rarityConfig = RARITY_CONFIG[rarity];
+
+    // 2. Determine Talent Type
     const tType = getWeightedRandom(TALENT_CONFIG) as TalentType;
     const config = TALENT_CONFIG[tType];
     
-    // Boss talents are always strong, random range 
-    const strength = Math.random(); 
+    // 3. Calculate Values based on Rarity Range
+    const range = rarityConfig.range; // e.g. [0.5, 0.8]
 
-    const lerp = (range: [number, number]) => {
-        const val = range[0] + (range[1] - range[0]) * strength;
-        return Number(val.toFixed(2));
+    const lerp = (globalRange: [number, number]) => {
+        // Calculate the specific value within the global range determined by the rarity percentile
+        return calculateRarityValue(globalRange[0], globalRange[1], range);
     };
 
-    const v1 = lerp(config.ranges.value1);
-    const v2 = config.ranges.value2 ? lerp(config.ranges.value2) : undefined;
-    const v3 = config.ranges.value3 ? lerp(config.ranges.value3) : undefined;
+    const v1 = Number(lerp(config.ranges.value1).toFixed(2));
+    const v2 = config.ranges.value2 ? Number(lerp(config.ranges.value2).toFixed(2)) : undefined;
+    const v3 = config.ranges.value3 ? Number(lerp(config.ranges.value3).toFixed(2)) : undefined;
     
-    // Round integer-like values if needed (e.g. range add for Sniper, reroll count for Lucky)
+    // Round integer-like values if needed
     const finalV3 = (tType === TalentType.SNIPER && v3) ? Math.floor(v3) : v3;
     const finalV2 = (tType === TalentType.LUCKY && v2) ? Math.round(v2) : v2;
 
     return {
         type: tType,
+        rarity: rarity,
         value1: v1,
         value2: finalV2,
         value3: finalV3,

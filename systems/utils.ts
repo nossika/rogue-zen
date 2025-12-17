@@ -1,5 +1,5 @@
 
-import { ElementType } from "../types";
+import { ElementType, Range, Percentage } from "../types";
 import { ELEMENT_ADVANTAGE } from "../constants";
 
 export const checkRectOverlap = (x1: number, y1: number, w1: number, h1: number, x2: number, y2: number, w2: number, h2: number) => {
@@ -38,3 +38,21 @@ export function getWeightedRandom<T extends string>(config: Record<T, { weight: 
     }
     return keys[0]; // Fallback
 }
+
+/**
+ * Calculates a final value based on a base range [globalMin, globalMax]
+ * and a rarity percentile range [rarityMin%, rarityMax%].
+ * 
+ * Example: 
+ * Global Range: 10 - 20
+ * Rarity Range: [0.0, 0.2] (Common)
+ * Result: Random value between 10 + (10*0.0) and 10 + (10*0.2) => 10 to 12
+ */
+export const calculateRarityValue = (globalMin: number, globalMax: number, rarityRange: Range<Percentage>): number => {
+    const span = globalMax - globalMin;
+    
+    const rangeMin = globalMin + (span * rarityRange[0]);
+    const rangeMax = globalMin + (span * rarityRange[1]);
+    
+    return rangeMin + Math.random() * (rangeMax - rangeMin);
+};

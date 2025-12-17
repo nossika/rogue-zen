@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Player, UpgradeReward, Talent, TalentType } from '../types';
-import { REROLL_COST } from '../constants';
+import { REROLL_COST, RARITY_CONFIG } from '../constants';
 import { RotateCcw, Coins, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react';
 import { generateRandomTalent } from '@/systems/items/Talent';
 import { TalentIcon } from './TalentIcon';
@@ -43,6 +43,8 @@ const TalentModal: React.FC<TalentModalProps> = ({ onSelect, player }) => {
       }
   };
 
+  const getRarityColor = (talent: Talent) => RARITY_CONFIG[talent.rarity]?.color || '#fff';
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[70] p-4 md:p-6 animate-in fade-in duration-300">
       <div className="w-full max-w-6xl my-auto text-center">
@@ -80,20 +82,22 @@ const TalentModal: React.FC<TalentModalProps> = ({ onSelect, player }) => {
           {player.talent ? (
               <button
                 onClick={() => onSelect(player.talent!, currentGold)}
-                className="relative group flex flex-col h-full bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-600 hover:border-green-500 transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)] min-h-[220px]"
+                className="relative group flex flex-col h-full bg-gray-800 rounded-xl overflow-hidden border-2 transition-all hover:scale-105 min-h-[220px]"
+                style={{ borderColor: getRarityColor(player.talent), boxShadow: `0 0 15px ${getRarityColor(player.talent)}40` }}
               >
                 <div className="absolute top-0 left-0 bg-gray-700 text-gray-200 text-[10px] font-bold px-3 py-1 rounded-br-lg z-20 shadow-md flex items-center gap-1">
                     <ShieldCheck size={12} /> EQUIPPED
                 </div>
 
                 <div className="h-28 md:h-36 w-full flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-gray-700 to-gray-800">
-                   <TalentIcon type={player.talent.type} size={64} className="text-gray-400 drop-shadow-lg group-hover:text-green-400 transition-colors" />
+                   <TalentIcon type={player.talent.type} size={64} className="drop-shadow-lg transition-colors" style={{ color: getRarityColor(player.talent) }} />
                 </div>
 
                 <div className="p-4 flex-1 w-full text-left bg-gray-900/95 flex flex-col border-t border-gray-700">
-                   <div className="flex items-center gap-2 mb-2">
-                       <h3 className="text-xl font-bold text-gray-300 group-hover:text-green-300">{player.talent.type}</h3>
+                   <div className="flex items-center gap-2 mb-1">
+                       <h3 className="text-xl font-bold" style={{ color: getRarityColor(player.talent) }}>{player.talent.type}</h3>
                    </div>
+                   <div className="text-[10px] uppercase font-bold text-gray-500 mb-2">{player.talent.rarity}</div>
                    <p className="text-gray-400 text-sm whitespace-pre-line leading-relaxed flex-1">
                        {player.talent.description}
                    </p>
@@ -109,33 +113,39 @@ const TalentModal: React.FC<TalentModalProps> = ({ onSelect, player }) => {
           )}
 
           {/* Options 2 & 3: New Talents */}
-          {newTalents.map((talent, idx) => (
+          {newTalents.map((talent, idx) => {
+              const rColor = getRarityColor(talent);
+              return (
               <button
                 key={idx}
                 onClick={() => onSelect(talent, currentGold)}
-                className="relative group flex flex-col h-full bg-gray-800 rounded-xl overflow-hidden border-2 border-blue-500 hover:border-blue-400 transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] min-h-[220px]"
+                className="relative group flex flex-col h-full bg-gray-800 rounded-xl overflow-hidden border-2 transition-all hover:scale-105 min-h-[220px]"
+                style={{ borderColor: rColor, boxShadow: `0 0 15px ${rColor}20` }}
               >
-                <div className="absolute top-0 left-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-br-lg z-20 shadow-md flex items-center gap-1">
+                <div className="absolute top-0 left-0 text-white text-[10px] font-bold px-3 py-1 rounded-br-lg z-20 shadow-md flex items-center gap-1"
+                     style={{ backgroundColor: rColor }}
+                >
                     <Sparkles size={12} /> NEW REWARD
                 </div>
 
                 <div className="h-28 md:h-36 w-full flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-gray-700 to-gray-800">
-                   <TalentIcon type={talent.type} size={64} className="text-blue-300 drop-shadow-lg group-hover:text-white transition-colors" />
+                   <TalentIcon type={talent.type} size={64} className="drop-shadow-lg transition-colors" style={{ color: rColor }} />
                 </div>
 
                 <div className="p-4 flex-1 w-full text-left bg-gray-900/95 flex flex-col border-t border-blue-900/50">
-                   <div className="flex items-center gap-2 mb-2">
-                       <h3 className="text-xl font-bold text-blue-200">{talent.type}</h3>
+                   <div className="flex items-center gap-2 mb-1">
+                       <h3 className="text-xl font-bold" style={{ color: rColor }}>{talent.type}</h3>
                    </div>
+                   <div className="text-[10px] uppercase font-bold text-gray-500 mb-2">{talent.rarity}</div>
                    <p className="text-blue-100/80 text-sm whitespace-pre-line leading-relaxed flex-1">
                        {talent.description}
                    </p>
-                   <div className="mt-4 text-center bg-blue-900/40 py-2 rounded text-blue-300 font-bold text-sm flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                   <div className="mt-4 text-center bg-blue-900/40 py-2 rounded text-blue-300 font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/10 transition-colors">
                        SELECT <ArrowRight size={14} />
                    </div>
                 </div>
               </button>
-          ))}
+          )})}
         </div>
       </div>
     </div>

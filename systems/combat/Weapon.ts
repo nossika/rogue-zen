@@ -31,7 +31,7 @@ export const fireWeapon = (
         const t = player.talent;
         if (t.type === TalentType.SNIPER && isRanged) {
             rangeMult *= t.value1;
-            dmgMult *= (t.value2 || 1);
+            // Sniper value2 is now penetration chance, not damage mult
             knockbackAdd += (t.value3 || 0);
         } else if (t.type === TalentType.FIGHTER && isMelee) {
             speedMult *= t.value1;
@@ -102,6 +102,14 @@ export const fireWeapon = (
           else if (type === 'BOW') { projSpeed = 15; projDuration = 50; projRadius = 5; }
       }
 
+      let penetrate = config.penetrate;
+      if (!penetrate && player.talent?.type === TalentType.SNIPER && isRanged) {
+          // Check for penetration chance (value2)
+          if (Math.random() < (player.talent.value2 || 0)) {
+              penetrate = true;
+          }
+      }
+
       projectiles.push({
         id: Math.random().toString(),
         x: player.x,
@@ -114,7 +122,7 @@ export const fireWeapon = (
         color: elementColor,
         radius: projRadius,
         source: 'PLAYER',
-        penetrate: config.penetrate, 
+        penetrate: penetrate, 
         isMelee,
         knockback: totalKnockback,
         element: element,

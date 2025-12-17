@@ -1,7 +1,8 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, FloatingText, Terrain, Hazard, HazardType, GoldDrop, UpgradeReward, Particle, SpatialHashGrid, ElementType, Talent } from '../types';
+import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, FloatingText, Terrain, Hazard, HazardType, GoldDrop, UpgradeReward, Particle, ElementType, Talent } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, INITIAL_PLAYER_WEAPON, GOLD_CONFIG } from '../constants';
+import { SpatialHashGrid } from '@/systems/core/SpatialHashGrid';
 
 // Sub-components
 import { GameHUD } from './GameHUD';

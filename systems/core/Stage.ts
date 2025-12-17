@@ -62,6 +62,9 @@ export const initializeStage = (ctx: StageSetupContext) => {
     const armor2Shield = ctx.player.equipment.armor2?.stats.shield || 0;
     ctx.player.stats.shield = armor1Shield + armor2Shield;
     
+    // Reset Ultimate Charge
+    ctx.player.ultimateCharge = 0;
+    
     // Reset Camera
     ctx.camera.x = Math.max(0, Math.min(MAP_WIDTH - CANVAS_WIDTH, ctx.player.x - CANVAS_WIDTH / 2));
     ctx.camera.y = Math.max(0, Math.min(MAP_HEIGHT - CANVAS_HEIGHT, ctx.player.y - CANVAS_HEIGHT / 2));
