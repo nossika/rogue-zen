@@ -1,9 +1,8 @@
-
 import React, { useMemo, useState } from 'react';
 import { Player, UpgradeReward, Talent, TalentType } from '../types';
 import { REROLL_COST, RARITY_CONFIG } from '../constants';
 import { RotateCcw, Coins, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react';
-import { generateRandomTalent } from '@/systems/items/Talent';
+import { generateRandomTalent } from '@/systems/items/talent';
 import { TalentIcon } from './TalentIcon';
 
 interface TalentModalProps {
@@ -26,7 +25,6 @@ const TalentModal: React.FC<TalentModalProps> = ({ onSelect, player }) => {
   
   const canAffordReroll = currentGold >= currentRerollCost || currentRerollCost === 0;
 
-  // Generate 2 NEW talents every time key changes
   const newTalents = useMemo(() => {
     const options: Talent[] = [];
     for (let i = 0; i < 2; i++) {
@@ -77,8 +75,6 @@ const TalentModal: React.FC<TalentModalProps> = ({ onSelect, player }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pb-4 max-w-5xl mx-auto">
-          
-          {/* Option 1: Keep Current */}
           {player.talent ? (
               <button
                 onClick={() => onSelect(player.talent!, currentGold)}
@@ -112,7 +108,6 @@ const TalentModal: React.FC<TalentModalProps> = ({ onSelect, player }) => {
               </div>
           )}
 
-          {/* Options 2 & 3: New Talents */}
           {newTalents.map((talent, idx) => {
               const rColor = getRarityColor(talent);
               return (

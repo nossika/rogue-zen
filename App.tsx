@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Game from './components/Game';
 import LevelUpModal from './components/LevelUpModal';
 import TalentModal from './components/TalentModal';
 import { Player, UpgradeReward, GameAssets } from './types';
 import { Play, Pause, Skull, RotateCcw, HelpCircle, X, Keyboard, Swords, ArrowRight, Home } from 'lucide-react';
-import { DEFAULT_PLAYER_SPRITE, DEFAULT_ENEMY_SPRITE } from './defaultAssets';
-import { AudioSystem } from '@/systems/core/Audio';
+import { DEFAULT_PLAYER_SPRITE, DEFAULT_ENEMY_SPRITE } from './default-assets';
+import { AudioSystem } from '@/systems/core/audio';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<'MENU' | 'PLAYING' | 'PAUSED' | 'STAGE_CLEAR' | 'GAME_OVER'>('MENU');
@@ -44,7 +44,6 @@ const App: React.FC = () => {
       } else if (gameState === 'MENU' || gameState === 'GAME_OVER') {
           AudioSystem.stopMusic();
       }
-      // Keep music playing during Pause/Stage Clear, maybe lower volume or just keep it ambient
   }, [gameState]);
 
   const isPortrait = dimensions.width < dimensions.height;
@@ -82,6 +81,10 @@ const App: React.FC = () => {
     AudioSystem.playLevelUp();
   };
 
+  const handleUpgradeApplied = useCallback(() => {
+      setUpgradeChosen(null);
+  }, []);
+
   const toggleHelp = () => {
       const willShow = !showHelp;
       setShowHelp(willShow);
@@ -90,7 +93,6 @@ const App: React.FC = () => {
       }
   };
 
-  // Wrapper style for forced landscape
   const containerStyle: React.CSSProperties = isPortrait ? {
     width: `${dimensions.height}px`, 
     height: `${dimensions.width}px`,
@@ -110,11 +112,8 @@ const App: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-gray-900 font-sans overflow-hidden">
-      
-      {/* Background Ambience */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-800 via-gray-900 to-black pointer-events-none" />
 
-      {/* Main Game Container - Rotates if Portrait */}
       <div style={containerStyle} className="flex flex-col items-center justify-center">
         
         {gameState === 'MENU' && (
@@ -145,7 +144,6 @@ const App: React.FC = () => {
 
         {(gameState === 'PLAYING' || gameState === 'STAGE_CLEAR' || gameState === 'PAUSED' || gameState === 'GAME_OVER') && (
           <div className="relative z-10 w-full h-full flex justify-center items-center">
-            {/* Add Key to force reset on restart */}
             <Game 
                 key={gameKey} 
                 assets={assets}
@@ -155,12 +153,12 @@ const App: React.FC = () => {
                 isPaused={gameState !== 'PLAYING'}
                 onPauseToggle={() => setGameState(prev => prev === 'PAUSED' ? 'PLAYING' : 'PAUSED')}
                 upgradeChosen={upgradeChosen}
-                onUpgradeApplied={() => setUpgradeChosen(null)}
+                onUpgradeApplied={handleUpgradeApplied}
                 isPortrait={isPortrait}
                 initialGold={persistentGold}
+                initialPlayer={playerSnapshot}
             />
             
-            {/* In-Game Controls (Top Right) */}
             <div className="absolute top-2 right-2 md:top-4 md:right-4 flex gap-2 z-[60]">
                 <button 
                   onClick={toggleHelp}
@@ -180,9 +178,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Overlays */}
         {gameState === 'STAGE_CLEAR' && playerSnapshot && (
-          // If Boss Stage (every 6 levels), show TalentModal, otherwise standard LevelUp
           (currentStage % 6 === 0) ? (
             <TalentModal 
               player={playerSnapshot} 

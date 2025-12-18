@@ -1,9 +1,8 @@
-
 import { Player, Enemy, Projectile, FloatingText, Terrain, Hazard, GoldDrop, Particle } from '../../types';
 import { MAP_WIDTH, MAP_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING, GOLD_CONFIG } from '../../constants';
-import * as TerrainSystem from '../world/Terrain';
-import * as LootSystem from '../items/Loot';
-import * as TalentSystem from '../items/Talent';
+import * as TerrainSystem from '../world/terrain';
+import * as LootSystem from '../items/loot';
+import * as TalentSystem from '../items/talent';
 
 interface StageSetupContext {
     player: Player;
@@ -88,14 +87,13 @@ export const initializeStage = (ctx: StageSetupContext) => {
     const val = GOLD_CONFIG.INITIAL.VALUE;
     const goldCount = Math.floor(Math.random() * (max - min + 1)) + min;
     
-    // To properly distribute value among drops if spawnGold divides total value
     const totalValue = goldCount * val;
     const newGold = LootSystem.spawnGold(ctx.terrain, totalValue, goldCount);
     ctx.goldDrops.push(...newGold);
 };
 
 export const checkStageClearCondition = (stageInfo: { killedCount: number; totalEnemies: number; stageCleared: boolean; isBossStage: boolean }): boolean => {
-    if (stageInfo.stageCleared) return false; // Already cleared
+    if (stageInfo.stageCleared) return false; 
 
     if (stageInfo.killedCount >= stageInfo.totalEnemies) {
         return true;
@@ -104,18 +102,15 @@ export const checkStageClearCondition = (stageInfo: { killedCount: number; total
 };
 
 export const processStageEndDurability = (player: Player, startHp: number) => {
-     // Calculate Durability Loss
      const endHp = player.stats.hp;
      const durabilityLoss = TalentSystem.calculateDurabilityLoss(player, startHp, endHp);
 
-     // Apply Durability Loss & Remove Broken Items
      const slots: ('weapon1' | 'weapon2' | 'armor1' | 'armor2')[] = ['weapon1', 'weapon2', 'armor1', 'armor2'];
      
      slots.forEach(slot => {
          const item = player.equipment[slot];
          if (item) {
              item.durability -= durabilityLoss;
-             // Check break
              if (item.durability <= 0) {
                  player.equipment[slot] = null;
                  console.log(`${slot} broke!`);

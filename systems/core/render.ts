@@ -1,10 +1,10 @@
 
 import { Player, Enemy, Projectile, Terrain, Hazard, GoldDrop, FloatingText, GameAssets, Particle } from '../../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, COLOR_PALETTE } from '../../constants';
-import * as WorldRender from '../ui/WorldRender';
-import * as EntityRender from '../ui/EntityRender';
-import * as CombatRender from '../ui/CombatRender';
-import * as ParticleSystem from '../ui/Particle';
+import * as WorldRender from '../ui/world-render';
+import * as EntityRender from '../ui/entity-render';
+import * as CombatRender from '../ui/combat-render';
+import * as ParticleSystem from '../ui/particle';
 
 interface DrawContext {
     ctx: CanvasRenderingContext2D;
@@ -39,14 +39,12 @@ export const drawGame = ({
     invincibilityTimer,
     omniForceActive
 }: DrawContext) => {
-    // Clear viewport
     ctx.fillStyle = COLOR_PALETTE.background;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
 
-    // Draw Grid
     ctx.fillStyle = '#2d3748';
     const startX = Math.floor(camera.x / 40) * 40;
     const startY = Math.floor(camera.y / 40) * 40;
@@ -61,17 +59,14 @@ export const drawGame = ({
         }
     }
     
-    // Map Border
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 5;
     ctx.strokeRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 
-    // Draw Systems
     WorldRender.drawTerrain(ctx, terrain);
     WorldRender.drawHazards(ctx, hazards, terrain);
     WorldRender.drawLoot(ctx, goldDrops);
 
-    // Buff Visuals
     if (omniForceActive) {
         ctx.save();
         ctx.translate(player.x, player.y);
@@ -92,15 +87,12 @@ export const drawGame = ({
         ctx.restore();
     }
 
-    // Entities
     EntityRender.drawPlayer(ctx, player, assets, hurtTimer, invincibilityTimer);
     enemies.forEach(e => EntityRender.drawEnemy(ctx, e, assets));
     projectiles.forEach(proj => CombatRender.drawProjectile(ctx, proj));
     
-    // Visual Effects
     ParticleSystem.drawParticles(ctx, particles);
 
-    // Floating Text
     floatingTexts.forEach(ft => {
       ctx.save();
       ctx.globalAlpha = ft.opacity;
@@ -123,7 +115,6 @@ export const drawGame = ({
     
     ctx.restore(); 
 
-    // Off-screen markers for ALL Enemies
     enemies.forEach(e => {
         const relX = e.x - camera.x;
         const relY = e.y - camera.y;
@@ -156,16 +147,13 @@ export const drawGame = ({
              ctx.translate(arrowX, arrowY);
              ctx.rotate(angle);
              
-             // Different color for Boss vs Normal Enemies
              ctx.fillStyle = e.type === 'BOSS' ? '#a855f7' : '#ef4444';
-             
              ctx.beginPath();
              ctx.moveTo(12, 0);
              ctx.lineTo(-8, 8);
              ctx.lineTo(-8, -8);
              ctx.fill();
              
-             // Extra flair for boss indicator
              if (e.type === 'BOSS') { 
                  ctx.strokeStyle = '#fff'; 
                  ctx.lineWidth = 2; 

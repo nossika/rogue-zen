@@ -12,11 +12,11 @@ export const INITIAL_PLAYER_STATS: Stats = {
     shield: 0,
     defense: 5,
     attack: 5,
-    attackSpeed: 0.1,
-    range: 10,
+    attackSpeed: 0,
+    range: 0,
     moveSpeed: 2,
     dodgeChance: 0,
-    knockback: 2,
+    knockback: 0,
     critChance: 0.02,
     armorOnHit: 0,
     ultChargeRate: 0.5
@@ -29,7 +29,7 @@ export const INITIAL_PLAYER_WEAPON: Item = {
     subtype: 'SWORD',
     element: ElementType.NONE,
     rarity: Rarity.COMMON,
-    stats: { attack: 10, range: 100, attackSpeed: 1.2, knockback: 8, critChance: 0.1, armorOnHit: 0 },
+    stats: { attack: 10, range: 100, attackSpeed: 1, knockback: 10, critChance: 0.2, armorOnHit: 0 },
     level: 1,
     durability: 100
 };
@@ -50,7 +50,7 @@ export const GOLD_CONFIG = {
     },
     INITIAL: {
         MIN: 1,
-        MAX: 4,
+        MAX: 3,
         VALUE: 30
     }
 };
@@ -81,7 +81,7 @@ export const RARITY_CONFIG: Record<Rarity, RarityConfigDefinition> = {
         color: '#fbbf24', // amber-400
         weight: 3,
         range: [0.8, 1.0],
-        ultimateChance: 0.9,
+        ultimateChance: 1.0,
         enchantmentChance: 1.0
     },
 };
@@ -123,13 +123,13 @@ interface WeaponConfig {
 }
 
 export const WEAPON_BASE_CONFIG: Record<string, WeaponConfig> = {
-    SWORD: { name: 'Sword', category: 'MELEE', baseStats: { attack: 15, range: 60, attackSpeed: 1.2, knockback: 15, critChance: 0.1, armorOnHit: 0 }, color: '#94a3b8', penetrate: true },
-    AXE: { name: 'Axe', category: 'MELEE', baseStats: { attack: 25, range: 50, attackSpeed: 0.8, knockback: 25, critChance: 0.15, armorOnHit: 0 }, color: '#cbd5e1', penetrate: true },
-    DAGGER: { name: 'Dagger', category: 'MELEE', baseStats: { attack: 8, range: 40, attackSpeed: 2.5, knockback: 5, critChance: 0.25, armorOnHit: 0 }, color: '#475569', penetrate: false },
-    PISTOL: { name: 'Pistol', category: 'RANGED', baseStats: { attack: 12, range: 300, attackSpeed: 1.5, knockback: 2, critChance: 0.1, armorOnHit: 0 }, color: '#d1d5db', penetrate: false },
-    SPEAR: { name: 'Spear', category: 'MELEE', baseStats: { attack: 18, range: 80, attackSpeed: 1.0, knockback: 10, critChance: 0.1, armorOnHit: 0 }, color: '#9ca3af', penetrate: true },
+    SWORD: { name: 'Sword', category: 'MELEE', baseStats: { attack: 15, range: 60, attackSpeed: 1, knockback: 15, critChance: 0.1, armorOnHit: 0 }, color: '#94a3b8', penetrate: true },
+    AXE: { name: 'Axe', category: 'MELEE', baseStats: { attack: 25, range: 50, attackSpeed: 0.7, knockback: 25, critChance: 0.15, armorOnHit: 0 }, color: '#cbd5e1', penetrate: true },
+    DAGGER: { name: 'Dagger', category: 'MELEE', baseStats: { attack: 8, range: 40, attackSpeed: 2.2, knockback: 5, critChance: 0.25, armorOnHit: 0 }, color: '#475569', penetrate: false },
+    PISTOL: { name: 'Pistol', category: 'RANGED', baseStats: { attack: 12, range: 300, attackSpeed: 1.2, knockback: 2, critChance: 0.1, armorOnHit: 0 }, color: '#d1d5db', penetrate: false },
+    SPEAR: { name: 'Spear', category: 'MELEE', baseStats: { attack: 18, range: 80, attackSpeed: 0.7, knockback: 10, critChance: 0.1, armorOnHit: 0 }, color: '#9ca3af', penetrate: true },
     SNIPER: { name: 'Sniper', category: 'RANGED', baseStats: { attack: 40, range: 600, attackSpeed: 0.5, knockback: 40, critChance: 0.4, armorOnHit: 0 }, color: '#1f293b', penetrate: false },
-    BOW: { name: 'Bow', category: 'RANGED', baseStats: { attack: 14, range: 250, attackSpeed: 1.8, knockback: 5, critChance: 0.15, armorOnHit: 0 }, color: '#a855f7', penetrate: false },
+    BOW: { name: 'Bow', category: 'RANGED', baseStats: { attack: 14, range: 250, attackSpeed: 1.3, knockback: 5, critChance: 0.15, armorOnHit: 0 }, color: '#a855f7', penetrate: false },
     BOMB: { name: 'Bomb', category: 'THROWN', baseStats: { attack: 30, range: 250, attackSpeed: 0.6, knockback: 30, critChance: 0, armorOnHit: 0 }, color: '#000000', penetrate: false },
 };
 
@@ -174,9 +174,9 @@ interface WeaponEnchantmentConfigDefinition {
 }
 
 export const WEAPON_ENCHANTMENT_CONFIG: Record<string, WeaponEnchantmentConfigDefinition> = {
-    NONE: { weight: 70 },
-    SLOW: { weight: 10, type: 'SLOW', label: 'Freezing', chanceRange: [0.1, 0.3], durationRange: [60, 180] },
-    STUN: { weight: 5, type: 'STUN', label: 'Stunning', chanceRange: [0.05, 0.15], durationRange: [30, 90] },
+    NONE: { weight: 50 },
+    SLOW: { weight: 20, type: 'SLOW', label: 'Freezing', chanceRange: [0.1, 0.3], durationRange: [60, 180] },
+    STUN: { weight: 15, type: 'STUN', label: 'Stunning', chanceRange: [0.05, 0.15], durationRange: [30, 90] },
     BLEED: { weight: 15, type: 'BLEED', label: 'Serrated', chanceRange: [0.2, 0.4], durationRange: [120, 240] },
 };
 
@@ -187,8 +187,8 @@ interface ArmorEnchantmentConfigDefinition {
 }
 
 export const ARMOR_ENCHANTMENT_CONFIG: Record<string, ArmorEnchantmentConfigDefinition> = {
-    NONE: { weight: 60 },
-    ELEMENTAL_RESIST: { weight: 15, type: 'ELEMENTAL_RESIST', valueRange: [0.5, 0.9] },
+    NONE: { weight: 50 },
+    ELEMENTAL_RESIST: { weight: 20, type: 'ELEMENTAL_RESIST', valueRange: [0.5, 0.9] },
     BURN_RESIST: { weight: 10, type: 'BURN_RESIST', valueRange: [0.5, 0.9] },
     POISON_RESIST: { weight: 10, type: 'POISON_RESIST', valueRange: [0.5, 0.9] },
     STATUS_RESIST: { weight: 10, type: 'STATUS_RESIST', valueRange: [0.3, 0.5] }
@@ -209,69 +209,70 @@ export const DEBUFF_CONFIG = {
     BOSS_RESISTANCE: 3
 };
 
+// GROWTH VALUES HALVED AS REQUESTED
 export const ENEMY_TYPES_CONFIG: Record<string, EnemyConfigDefinition> = {
     STANDARD: { 
         minStage: 1, spawnWeight: 50, color: '#ef4444', 
         radius: 16,
-        baseHp: 20, hpGrowth: 3, 
-        baseAttack: 10, attackGrowth: 1.4,
-        speedMin: 1, speedMax: 2
+        baseHp: 20, hpGrowth: 1.5, 
+        baseAttack: 10, attackGrowth: 0.7,
+        speedMin: 0.8, speedMax: 1.8
     },
     FAST: { 
         minStage: 2, spawnWeight: 20, color: '#fbbf24', 
         radius: 12,
-        baseHp: 12, hpGrowth: 1.8, 
-        baseAttack: 8, attackGrowth: 1.2,
-        speedMin: 2.2, speedMax: 2.8
+        baseHp: 12, hpGrowth: 0.9, 
+        baseAttack: 8, attackGrowth: 0.6,
+        speedMin: 2, speedMax: 2.8
     },
     TANK: { 
         minStage: 3, spawnWeight: 15, color: '#1e3a8a', 
         radius: 22,
-        baseHp: 50, hpGrowth: 7.5, 
-        baseAttack: 12, attackGrowth: 1.6,
-        speedMin: 0.6, speedMax: 1.4
+        baseHp: 50, hpGrowth: 3.75, 
+        baseAttack: 12, attackGrowth: 0.8,
+        speedMin: 0.6, speedMax: 1.2
     },
     RANGED: { 
         minStage: 4, spawnWeight: 15, color: '#10b981', 
         radius: 14,
-        baseHp: 16, hpGrowth: 2.4, 
-        baseAttack: 10, attackGrowth: 1.6,
-        speedMin: 1.2, speedMax: 2
+        baseHp: 16, hpGrowth: 1.2, 
+        baseAttack: 10, attackGrowth: 0.8,
+        speedMin: 1, speedMax: 1.6
     },
     BOMBER: { 
         minStage: 5, spawnWeight: 10, color: '#000000', 
         radius: 16,
-        baseHp: 10, hpGrowth: 1.5, 
-        baseAttack: 18, attackGrowth: 2,
-        speedMin: 1.4, speedMax: 1.8
+        baseHp: 10, hpGrowth: 0.75, 
+        baseAttack: 18, attackGrowth: 1,
+        speedMin: 1, speedMax: 1.6
     },
     INCINERATOR: { 
         minStage: 8, spawnWeight: 8, color: '#b91c1c', 
         radius: 18,
-        baseHp: 24, hpGrowth: 3.6, 
-        baseAttack: 10, attackGrowth: 2,
-        speedMin: 1.4, speedMax: 2
+        baseHp: 24, hpGrowth: 1.8, 
+        baseAttack: 10, attackGrowth: 1,
+        speedMin: 1, speedMax: 1.6
     },
     ZOMBIE: { 
         minStage: 7, spawnWeight: 20, color: '#65a30d', 
         radius: 16,
-        baseHp: 24, hpGrowth: 3.6, 
-        baseAttack: 10, attackGrowth: 1.8,
-        speedMin: 1.6, speedMax: 2.8
+        baseHp: 24, hpGrowth: 1.8, 
+        baseAttack: 10, attackGrowth: 0.9,
+        speedMin: 1.6, speedMax: 2.4
     },
     IRON_BEETLE: { 
         minStage: 6, spawnWeight: 10, color: '#475569', 
         radius: 20,
-        baseHp: 60, hpGrowth: 9, 
-        baseAttack: 6, attackGrowth: 1,
-        speedMin: 1, speedMax: 1.8
+        baseHp: 60, hpGrowth: 4.5, 
+        baseAttack: 6, attackGrowth: 0.5,
+        speedMin: 0.8, speedMax: 1.4
     },
     BOSS: { 
         minStage: 0, spawnWeight: 0, color: '#7e22ce', 
         radius: 48,
-        baseHp: 600, hpGrowth: 100, 
-        baseAttack: 10, attackGrowth: 2.5,
-        speedMin: 1.2, speedMax: 2
+        baseHp: 600, hpGrowth: 50, 
+        baseAttack: 10, attackGrowth: 1.25,
+        speedMin: 1.2, speedMax: 1.7
     }
 };
 

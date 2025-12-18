@@ -1,10 +1,10 @@
 
 import { Projectile, Player, Enemy, Terrain, ElementType, HazardType } from '../../types';
-import { SpatialHashGrid } from '../core/SpatialHashGrid';
+import { SpatialHashGrid } from '../core/spatial-hash-grid';
 import { checkRectOverlap, getElementalMultiplier } from '../utils';
-import { getTerrainAt } from '../world/Terrain';
+import { getTerrainAt } from '../world/terrain';
 import { ELEMENT_CONFIG, DEBUFF_CONFIG } from '../../constants';
-import { triggerBossAbility, applyDebuff } from '../entities/Enemy';
+import { triggerBossAbility, applyDebuff } from '../entities/enemy';
 
 export const updateProjectiles = (
     projectiles: Projectile[],
@@ -207,8 +207,6 @@ export const updateProjectiles = (
            const d = Math.sqrt((player.x - proj.x)**2 + (player.y - proj.y)**2);
            if (d < player.width/2 + proj.radius) {
                if (!proj.hitEnemies.has(player.id)) {
-                   
-                   // Check Armor Elemental Resistances
                    let damage = proj.damage;
                    const armors = [player.equipment.armor1, player.equipment.armor2];
                    

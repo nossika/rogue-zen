@@ -1,8 +1,7 @@
-
 import { GoldDrop, Player, Terrain } from '../../types';
 import { MAP_WIDTH, MAP_HEIGHT } from '../../constants';
-import * as TerrainSystem from '../world/Terrain';
-import { AudioSystem } from '../core/Audio';
+import * as TerrainSystem from '../world/terrain';
+import { AudioSystem } from '../core/audio';
 
 export const spawnGold = (terrain: Terrain[], totalValue: number, count: number = 1): GoldDrop[] => {
     const drops: GoldDrop[] = [];

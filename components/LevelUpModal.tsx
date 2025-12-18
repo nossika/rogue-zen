@@ -3,8 +3,8 @@ import React, { useMemo, useState } from 'react';
 import { Item, Player, Stats, TalentType, UpgradeReward, StatUpgrade, ElementType } from '../types';
 import { RARITY_CONFIG, ELEMENT_CONFIG, REROLL_COST, ULTIMATE_CONFIG } from '../constants';
 import { ArrowRight, Star, Heart, Zap, RefreshCw, X, Coins, RotateCcw, Activity, Skull, Shield } from 'lucide-react';
-import { generateRandomWeapon } from '@/systems/items/Weapon';
-import { generateRandomArmor } from '@/systems/items/Armor';
+import { generateRandomWeapon } from '@/systems/items/weapon';
+import { generateRandomArmor } from '@/systems/items/armor';
 import { ItemIcon } from './ItemIcon';
 
 interface LevelUpModalProps {
@@ -273,7 +273,6 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                              </div>
                          )}
                          
-                         {/* Second Slot */}
                          <div className="w-full md:w-80 bg-gray-900 border border-gray-600 rounded-xl overflow-hidden flex flex-col shadow-lg">
                              <div className="bg-gray-800 p-3 text-gray-300 font-bold border-b border-gray-600">
                                  REPLACE: {swapMode === 'ARMOR' ? 'Armor Slot 2' : 'Weapon Slot 2'}
@@ -462,29 +461,9 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ onSelect, level, player }) 
                    </div>
 
                    {isItem && item!.enchantment && (
-                       <div className="mt-4 p-2 bg-purple-900/20 border border-purple-700/50 rounded text-xs text-purple-200/90">
-                           <span className="font-bold block text-purple-400 mb-1">
-                               {item!.enchantment.label}
-                           </span>
-                           {Math.round(item!.enchantment.chance * 100)}% Chance to {item!.enchantment.type}
-                           <span className="block text-[9px] opacity-70">Duration: {(item!.enchantment.duration / 60).toFixed(1)}s</span>
-                       </div>
-                   )}
-                   
-                   {isItem && item!.armorEnchantment && (
-                       <div className="mt-4 p-2 bg-blue-900/20 border border-blue-700/50 rounded text-xs text-blue-200/90">
-                           <span className="font-bold block text-blue-400 mb-1">
-                               {item!.armorEnchantment.title}
-                           </span>
-                           {item!.armorEnchantment.label}
-                       </div>
-                   )}
-
-                   {isItem && item!.ultimate && (
-                       <div className="mt-2 p-2 bg-yellow-900/20 border border-yellow-700/50 rounded text-xs text-yellow-200/80 italic">
-                           <span className="font-bold block not-italic text-yellow-500 mb-1">
-                               Ult: {item!.ultimateName}
-                           </span>
+                       <div className="mt-4 p-2 bg-purple-900/40 rounded border border-purple-500/30">
+                           <span className="text-[10px] text-purple-300 font-bold uppercase block">Enchantment</span>
+                           <span className="text-[10px] text-gray-300">{item!.enchantment.label}</span>
                        </div>
                    )}
                 </div>

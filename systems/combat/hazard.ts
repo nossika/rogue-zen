@@ -1,6 +1,6 @@
 
 import { Hazard, HazardType, Player, Enemy, Terrain, ElementType } from '../../types';
-import * as TerrainSystem from '../world/Terrain';
+import * as TerrainSystem from '../world/terrain';
 import { checkRectOverlap, getElementalMultiplier } from '../utils';
 import { ELEMENT_CONFIG, DEBUFF_CONFIG } from '../../constants';
 
@@ -62,16 +62,11 @@ export const updateHazards = (
         if (h.type === 'EXPLOSION') {
             if (h.duration === h.maxDuration - 1) shouldDamage = true;
             if (shouldDamage) {
-                
                 if (h.source === 'ENEMY') {
                     const dPlayer = Math.sqrt((player.x - h.x)**2 + (player.y - h.y)**2);
                     if (dPlayer < h.radius + player.width/2) {
-                        
-                        // Apply Elemental Resistance for Explosions (Usually Fire or Earth/Physical)
                         let damage = h.damage;
                         const armors = [player.equipment.armor1, player.equipment.armor2];
-                        
-                        // Explosion hazards carry an element, check resists
                         if (h.element !== ElementType.NONE) {
                              for (const armor of armors) {
                                if (armor && armor.armorEnchantment && 
@@ -81,33 +76,25 @@ export const updateHazards = (
                                }
                            }
                         }
-
                         handlePlayerHit(damage, false, false);
                     }
                 } else if (h.source === 'PLAYER') {
                     enemies.forEach(e => {
                         if (e.dead) return; 
-
                         const d = Math.sqrt((e.x - h.x)**2 + (e.y - h.y)**2);
                         if (d < h.radius + e.width/2) {
-                            
                             let multiplier = 1.0;
                             if (h.source === 'PLAYER') {
                                 multiplier = getElementalMultiplier(h.element, e.element);
                             }
-                            
                             const isCrit = Math.random() < (h.critChance || 0);
-                            
                             let finalDamage = h.damage * multiplier;
                             if (isCrit) finalDamage *= 2;
-                            
                             if (e.debuffs.BLEED > 0) {
                                 finalDamage *= DEBUFF_CONFIG.BLEED_DAMAGE_MULT;
                             }
-
                             let damageToHp = finalDamage;
                             let hitShield = false;
-                            
                             if (e.stats.shield > 0) {
                                 hitShield = true;
                                 if (e.stats.shield >= finalDamage) {
@@ -118,15 +105,11 @@ export const updateHazards = (
                                     e.stats.shield = 0;
                                 }
                             }
-                            
                             e.stats.hp -= damageToHp;
-                            
-                            if (damageToHp > 0) {
-                                if (spawnSplatter) spawnSplatter(e.x, e.y, '#ef4444');
+                            if (damageToHp > 0 && spawnSplatter) {
+                                spawnSplatter(e.x, e.y, '#ef4444');
                             }
-                            
                             let textColor = '#ffffff'; 
-                            
                             if (hitShield && damageToHp <= 0) {
                                 textColor = '#cbd5e1'; 
                             } else if (multiplier >= 3.0) {
@@ -134,10 +117,8 @@ export const updateHazards = (
                             } else if (multiplier <= 0.5) {
                                 textColor = '#9ca3af'; 
                             }
-                            
                             let textStr = Math.round(finalDamage).toString();
                             if (isCrit) textStr += "!";
-                            
                             spawnFloatingText(e.x, e.y - 20, textStr, textColor, isCrit);
 
                             if (h.knockback && h.knockback > 0 && e.stats.shield <= 0) {
@@ -145,18 +126,15 @@ export const updateHazards = (
                                 if (e.type === 'BOSS') {
                                     kbStrength /= DEBUFF_CONFIG.BOSS_RESISTANCE;
                                 }
-                                
                                 const angle = Math.atan2(e.y - h.y, e.x - h.x);
                                 const kbX = Math.cos(angle) * kbStrength;
                                 const kbY = Math.sin(angle) * kbStrength;
-                                
                                 if (!TerrainSystem.getTerrainAt(terrain, e.x + kbX, e.y, 20, 20)?.includes('WALL')) e.x += kbX;
                                 if (!TerrainSystem.getTerrainAt(terrain, e.x, e.y + kbY, 20, 20)?.includes('WALL')) e.y += kbY;
                             }
                         }
                     });
                 }
-
                 terrain.forEach(t => {
                     if (t.type === 'EARTH_WALL') {
                         if (checkRectOverlap(h.x - h.radius, h.y - h.radius, h.radius*2, h.radius*2, t.x, t.y, t.width, t.height)) {
@@ -170,26 +148,19 @@ export const updateHazards = (
             const dx = player.x - h.x;
             const dy = player.y - h.y;
             const distSq = dx*dx + dy*dy;
-            
             const playerHit = distSq < hitThreshold * hitThreshold;
-
-            let damageTick = h.damage * dt; // Assuming h.damage is roughly damage-per-hit now that we have i-frames
-
+            let damageTick = h.damage * dt;
             const centerTerrain = TerrainSystem.getTerrainAt(terrain, h.x, h.y, 1, 1);
             if ((h.type === 'FIRE' && centerTerrain === 'WATER') || 
                 (h.type === 'POISON' && centerTerrain === 'MUD')) {
                 hazards.splice(i, 1);
                 continue;
             }
-
             if (playerHit) {
                 const playerTerrain = TerrainSystem.getTerrainAt(terrain, player.x, player.y, 1, 1);
                 const isSafe = (h.type === 'FIRE' && playerTerrain === 'WATER') || 
                                (h.type === 'POISON' && playerTerrain === 'MUD');
-
                 if (!isSafe) {
-                    
-                    // Apply Hazard Resistances
                     const armors = [player.equipment.armor1, player.equipment.armor2];
                     for (const armor of armors) {
                         if (armor && armor.armorEnchantment) {
@@ -201,28 +172,20 @@ export const updateHazards = (
                              }
                         }
                     }
-
-                    // Directly apply hit with 25% slow and bypass shield (true)
-                    // We remove accumulator since individual hits will now show numbers due to I-frames
                     handlePlayerHit(damageTick, true, false, 0.25);
                 }
             }
-            
             enemies.forEach(e => {
                  if (e.dead) return; 
-
                  const edx = e.x - h.x;
                  const edy = e.y - h.y;
                  const eDistSq = edx*edx + edy*edy;
                  const eHitThreshold = h.radius + e.width / 2;
-                 
                  if (eDistSq < eHitThreshold * eHitThreshold) {
                      if (h.type === 'POISON' && e.type === 'ZOMBIE') return;
-
                      const enemyTerrain = TerrainSystem.getTerrainAt(terrain, e.x, e.y, 1, 1);
                      const isSafe = (h.type === 'FIRE' && enemyTerrain === 'WATER') || 
                                     (h.type === 'POISON' && enemyTerrain === 'MUD');
-                     
                      if (!isSafe) {
                          if (e.stats.shield > 0) {
                              if (e.stats.shield >= damageTick) {
