@@ -2,7 +2,7 @@
 import { Projectile, Player, Enemy, Terrain, ElementType, HazardType } from '../../types';
 import { SpatialHashGrid } from '../core/spatial-hash-grid';
 import { checkRectOverlap, getElementalMultiplier } from '../utils';
-import { getTerrainAt } from '../world/terrain';
+import * as TerrainSystem from '../world/terrain';
 import { ELEMENT_CONFIG, DEBUFF_CONFIG } from '../../constants';
 import { triggerBossAbility, applyDebuff } from '../entities/enemy';
 
@@ -42,16 +42,14 @@ export const updateProjectiles = (
        
        if (!proj.isBomb) {
            let hitWall = false;
-           for (const t of terrain) {
-               if ((t.type === 'WALL' || t.type === 'EARTH_WALL') && checkRectOverlap(proj.x - proj.radius, proj.y - proj.radius, proj.radius*2, proj.radius*2, t.x, t.y, t.width, t.height)) {
-                   
-                   if (t.type === 'EARTH_WALL') {
-                       t.type = 'MUD'; 
-                   }
-
-                   hitWall = true;
-                   break; 
+           // Check if projectile hit the functional winner terrain in its area
+           const hitT = TerrainSystem.getTerrainAt(terrain, proj.x, proj.y, proj.radius * 2, proj.radius * 2);
+           
+           if (hitT?.type === 'WALL' || hitT?.type === 'EARTH_WALL') {
+               if (hitT.type === 'EARTH_WALL') {
+                   hitT.type = 'MUD'; 
                }
+               hitWall = true;
            }
            
            if (hitWall && !proj.isMelee) {
@@ -192,8 +190,11 @@ export const updateProjectiles = (
                   const kbX = Math.cos(angle) * kbStrength;
                   const kbY = Math.sin(angle) * kbStrength;
                   
-                  if (!getTerrainAt(terrain, e.x + kbX, e.y, 20, 20)?.includes('WALL')) e.x += kbX;
-                  if (!getTerrainAt(terrain, e.x, e.y + kbY, 20, 20)?.includes('WALL')) e.y += kbY;
+                  const hitTCheck = TerrainSystem.getTerrainAt(terrain, e.x + kbX, e.y, 20, 20);
+                  if (hitTCheck?.type !== 'WALL' && hitTCheck?.type !== 'EARTH_WALL') e.x += kbX;
+                  
+                  const hitTCheckY = TerrainSystem.getTerrainAt(terrain, e.x, e.y + kbY, 20, 20);
+                  if (hitTCheckY?.type !== 'WALL' && hitTCheckY?.type !== 'EARTH_WALL') e.y += kbY;
               }
 
               hit = true;

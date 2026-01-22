@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Item, UltimateType, Stats, Player, Talent } from '../types';
-import { Coins, User, Sword, Shield, Wrench, Sparkles } from 'lucide-react';
+import { Coins, User, Sword, Shield, Wrench, Sparkles, Clock } from 'lucide-react';
 import { ItemIcon } from './ItemIcon';
 import { UltimateIcon } from './Ultimate';
 import { TalentIcon } from './TalentIcon';
@@ -22,7 +22,8 @@ interface GameHUDProps {
         activeUltimates: UltimateType[];
         stats: Stats;
         enemiesLeft: number;
-        talent: Talent | null; // Added Talent State
+        talent: Talent | null;
+        stageTimer: number; // Added to interface
     };
     currentStage: number;
     isBossStage: boolean;
@@ -186,8 +187,19 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-pixel text-white drop-shadow-lg whitespace-nowrap`}>
                    {isBossStage ? <span className="text-red-500 animate-pulse">BOSS FIGHT</span> : `STAGE ${currentStage}`}
                 </h2>
+                
+                {/* Timer Display for non-boss stages */}
                 {!isBossStage && (
-                    <div className="text-red-400 font-bold text-xs md:text-lg mt-1 animate-pulse">
+                    <div className="flex items-center gap-2 mt-2 bg-black/40 px-3 py-1 rounded-full border border-white/20">
+                        <Clock size={isMobile ? 14 : 18} className={uiState.stageTimer < 10 ? 'text-red-500 animate-pulse' : 'text-blue-400'} />
+                        <span className={`${isMobile ? 'text-sm' : 'text-xl'} font-mono font-bold ${uiState.stageTimer < 10 ? 'text-red-500' : 'text-white'}`}>
+                            {Math.ceil(uiState.stageTimer)}s
+                        </span>
+                    </div>
+                )}
+
+                {!isBossStage && (
+                    <div className="text-red-400 font-bold text-[10px] md:text-sm mt-1 opacity-80 uppercase tracking-tighter">
                        ENEMIES: {uiState.enemiesLeft}
                     </div>
                 )}

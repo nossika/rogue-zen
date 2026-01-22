@@ -1,3 +1,4 @@
+
 import { GoldDrop, Player, Terrain } from '../../types';
 import { MAP_WIDTH, MAP_HEIGHT } from '../../constants';
 import * as TerrainSystem from '../world/terrain';
@@ -15,7 +16,7 @@ export const spawnGold = (terrain: Terrain[], totalValue: number, count: number 
             gx = Math.random() * (MAP_WIDTH - 100) + 50;
             gy = Math.random() * (MAP_HEIGHT - 100) + 50;
             const t = TerrainSystem.getTerrainAt(terrain, gx, gy, 30, 30);
-            if (t !== 'WALL') valid = true;
+            if (t?.type !== 'WALL' && t?.type !== 'EARTH_WALL') valid = true;
             attempts++;
         } while(!valid && attempts < 20);
 

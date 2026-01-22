@@ -3,8 +3,10 @@ import { TerrainType, Stats, Rarity, ElementType, UltimateType, TalentType, Weap
 
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 800;
-export const MAP_WIDTH = 1600;
-export const MAP_HEIGHT = 1600;
+export const MAP_WIDTH = 1400;
+export const MAP_HEIGHT = 1400;
+
+export const STAGE_TIME_LIMIT = 60; // 60 seconds
 
 export const INITIAL_PLAYER_STATS: Stats = {
     maxHp: 150,
@@ -124,7 +126,7 @@ interface WeaponConfig {
 
 export const WEAPON_BASE_CONFIG: Record<string, WeaponConfig> = {
     SWORD: { name: 'Sword', category: 'MELEE', baseStats: { attack: 15, range: 60, attackSpeed: 1, knockback: 15, critChance: 0.1, armorOnHit: 0 }, color: '#94a3b8', penetrate: true },
-    AXE: { name: 'Axe', category: 'MELEE', baseStats: { attack: 25, range: 50, attackSpeed: 0.7, knockback: 25, critChance: 0.15, armorOnHit: 0 }, color: '#cbd5e1', penetrate: true },
+    AXE: { name: 'Axe', category: 'MELEE', baseStats: { attack: 25, range: 50, attackSpeed: 0.7, knockback: 25, critChance: 0.15, armorOnHit: 0 }, color: '#71717a', penetrate: true },
     DAGGER: { name: 'Dagger', category: 'MELEE', baseStats: { attack: 8, range: 40, attackSpeed: 2.2, knockback: 5, critChance: 0.25, armorOnHit: 0 }, color: '#475569', penetrate: false },
     PISTOL: { name: 'Pistol', category: 'RANGED', baseStats: { attack: 12, range: 300, attackSpeed: 1.2, knockback: 2, critChance: 0.1, armorOnHit: 0 }, color: '#d1d5db', penetrate: false },
     SPEAR: { name: 'Spear', category: 'MELEE', baseStats: { attack: 18, range: 80, attackSpeed: 0.7, knockback: 10, critChance: 0.1, armorOnHit: 0 }, color: '#9ca3af', penetrate: true },
@@ -319,9 +321,9 @@ export const TALENT_CONFIG: Record<TalentType, TalentDefinition> = {
 export const ENEMIES_PER_STAGE_BASE = 10;
 export const ENEMIES_PER_STAGE_SCALING = 4;
 
-export const TERRAIN_CONFIG: Record<TerrainType, { color: string, label: string, density: number }> = {
-  WALL: { color: '#334155', label: 'Wall', density: 0.000003 }, // ~7.5 items on 1600x1600
-  EARTH_WALL: { color: '#78350f', label: 'Earth Wall', density: 0.000003 }, // ~7.5 items
-  WATER: { color: 'rgba(14, 165, 233, 0.5)', label: 'Water', density: 0.0000015 }, // ~3.8 items
-  MUD: { color: 'rgba(67, 20, 7, 0.7)', label: 'Mud', density: 0.0000015 }, // ~3.8 items
+export const TERRAIN_CONFIG: Record<TerrainType, { color: string, label: string, density: number, zIndex: number }> = {
+  WALL: { color: '#334155', label: 'Wall', density: 0.000003, zIndex: 100 },
+  EARTH_WALL: { color: '#78350f', label: 'Earth Wall', density: 0.000003, zIndex: 90 },
+  WATER: { color: 'rgba(14, 165, 233, 0.5)', label: 'Water', density: 0.0000015, zIndex: 10 },
+  MUD: { color: 'rgba(67, 20, 7, 0.7)', label: 'Mud', density: 0.0000015, zIndex: 20 },
 };

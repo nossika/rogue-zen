@@ -2,6 +2,7 @@
 import { Player, GameAssets, Terrain, TerrainType, FloatingText } from '../../types';
 import { MAP_WIDTH, MAP_HEIGHT, DETAIL_COLORS } from '../../constants';
 import { checkRectOverlap } from '../utils';
+import * as TerrainSystem from '../world/terrain';
 import * as FloatingTextSystem from '../ui/floating-text';
 
 export const updatePlayerMovement = (
@@ -25,13 +26,9 @@ export const updatePlayerMovement = (
       player.angle = Math.atan2(dy, dx);
     }
 
-    let terrainType: TerrainType | null = null;
-    for (const t of terrain) {
-        if ((t.type !== 'WALL' && t.type !== 'EARTH_WALL') && player.x > t.x && player.x < t.x + t.width && player.y > t.y && player.y < t.y + t.height) {
-            terrainType = t.type;
-            break;
-        }
-    }
+    // Use z-index aware terrain check for floors
+    const winningTerrain = TerrainSystem.getTerrainAt(terrain, player.x, player.y, 1, 1);
+    const terrainType = winningTerrain?.type || null;
 
     let speed = player.stats.moveSpeed;
     if (speedBoost > 0) speed *= 1.5;
@@ -50,27 +47,23 @@ export const updatePlayerMovement = (
         player.velocity.y = targetVy;
     }
 
+    // X-Axis Collision
     let nextX = player.x + player.velocity.x;
-    let hitWallX = false;
-    for (const t of terrain) {
-        if ((t.type === 'WALL' || t.type === 'EARTH_WALL') && checkRectOverlap(nextX - 10, player.y - 10, 20, 20, t.x, t.y, t.width, t.height)) {
-            hitWallX = true;
-            player.velocity.x = 0; 
-            break;
-        }
+    const hitTX = TerrainSystem.getTerrainAt(terrain, nextX, player.y, 20, 20);
+    if (hitTX?.type === 'WALL' || hitTX?.type === 'EARTH_WALL') {
+        player.velocity.x = 0;
+    } else {
+        player.x = Math.max(10, Math.min(MAP_WIDTH - 10, nextX));
     }
-    if (!hitWallX) player.x = Math.max(10, Math.min(MAP_WIDTH - 10, nextX));
 
+    // Y-Axis Collision
     let nextY = player.y + player.velocity.y;
-    let hitWallY = false;
-    for (const t of terrain) {
-        if ((t.type === 'WALL' || t.type === 'EARTH_WALL') && checkRectOverlap(player.x - 10, nextY - 10, 20, 20, t.x, t.y, t.width, t.height)) {
-            hitWallY = true;
-            player.velocity.y = 0; 
-            break;
-        }
+    const hitTY = TerrainSystem.getTerrainAt(terrain, player.x, nextY, 20, 20);
+    if (hitTY?.type === 'WALL' || hitTY?.type === 'EARTH_WALL') {
+        player.velocity.y = 0;
+    } else {
+        player.y = Math.max(10, Math.min(MAP_HEIGHT - 10, nextY));
     }
-    if (!hitWallY) player.y = Math.max(10, Math.min(MAP_HEIGHT - 10, nextY));
 };
 
 export const handlePlayerDamage = (

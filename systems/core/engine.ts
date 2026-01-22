@@ -34,6 +34,7 @@ export interface GameContext {
         omniForce: number;
         spawn: number;
         stageClear: number;
+        stageTimer: number; // Added stage timer
     };
     cooldowns: {
         weapon1: number;
@@ -55,6 +56,12 @@ export const updateGameTick = (ctx: GameContext, deltaTime: number) => {
 
     const isTimeStop = ctx.timers.timeStop > 0;
     const isOmniForce = ctx.timers.omniForce > 0;
+
+    // Stage Timer logic
+    if (!isTimeStop && !ctx.stageInfo.isBossStage && !ctx.stageInfo.stageCleared && ctx.timers.stageClear === 0) {
+        // deltaTime is in ms. Decrement timer.
+        ctx.timers.stageTimer = Math.max(0, ctx.timers.stageTimer - (deltaTime / 1000));
+    }
 
     // 2. Spawning Logic
     if (!isTimeStop) {

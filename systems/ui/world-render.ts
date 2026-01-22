@@ -6,7 +6,12 @@ import { checkRectOverlap } from '../utils';
 export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: Terrain[]) => {
     const time = Date.now() / 1000;
 
-    terrain.forEach(t => {
+    // Sort by zIndex so higher layers are drawn on top of lower ones
+    const sortedTerrain = [...terrain].sort((a, b) => 
+        TERRAIN_CONFIG[a.type].zIndex - TERRAIN_CONFIG[b.type].zIndex
+    );
+
+    sortedTerrain.forEach(t => {
         const conf = TERRAIN_CONFIG[t.type];
         
         ctx.save();

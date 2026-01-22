@@ -1,5 +1,6 @@
+
 import { Player, Enemy, Projectile, FloatingText, Terrain, Hazard, GoldDrop, Particle } from '../../types';
-import { MAP_WIDTH, MAP_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING, GOLD_CONFIG } from '../../constants';
+import { MAP_WIDTH, MAP_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, ENEMIES_PER_STAGE_BASE, ENEMIES_PER_STAGE_SCALING, GOLD_CONFIG, STAGE_TIME_LIMIT } from '../../constants';
 import * as TerrainSystem from '../world/terrain';
 import * as LootSystem from '../items/loot';
 import * as TalentSystem from '../items/talent';
@@ -23,6 +24,7 @@ interface StageSetupContext {
         timeStop: { current: number };
         speedBoost: { current: number };
         omniForce: { current: number };
+        stageTimer: { current: number }; // Added to track stage timer
     };
     currentStage: number;
     initialGold: number;
@@ -75,6 +77,7 @@ export const initializeStage = (ctx: StageSetupContext) => {
     ctx.timers.timeStop.current = 0;
     ctx.timers.speedBoost.current = 0;
     ctx.timers.omniForce.current = 0;
+    ctx.timers.stageTimer.current = STAGE_TIME_LIMIT;
 
     // Generate Terrain & Loot
     const newTerrain = TerrainSystem.generateTerrain();
@@ -92,10 +95,16 @@ export const initializeStage = (ctx: StageSetupContext) => {
     ctx.goldDrops.push(...newGold);
 };
 
-export const checkStageClearCondition = (stageInfo: { killedCount: number; totalEnemies: number; stageCleared: boolean; isBossStage: boolean }): boolean => {
+export const checkStageClearCondition = (stageInfo: { killedCount: number; totalEnemies: number; stageCleared: boolean; isBossStage: boolean }, stageTimer: number): boolean => {
     if (stageInfo.stageCleared) return false; 
 
-    if (stageInfo.killedCount >= stageInfo.totalEnemies) {
+    // Boss Stage: Must kill boss
+    if (stageInfo.isBossStage) {
+        return stageInfo.killedCount >= stageInfo.totalEnemies;
+    }
+
+    // Normal Stage: Kill all OR Timer reaches 0
+    if (stageInfo.killedCount >= stageInfo.totalEnemies || stageTimer <= 0) {
         return true;
     }
     return false;

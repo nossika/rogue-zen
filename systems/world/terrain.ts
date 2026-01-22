@@ -37,11 +37,11 @@ export const generateTerrain = (): Terrain[] => {
           if (tType === 'WALL' || tType === 'EARTH_WALL') {
               const isVertical = Math.random() > 0.5;
               if (isVertical) {
-                  tw = 30 + Math.random() * 20;    
-                  th = 150 + Math.random() * 250;  
+                  tw = 20 + Math.random() * 20;    
+                  th = 80 + Math.random() * 100;  
               } else {
-                  tw = 150 + Math.random() * 250;  
-                  th = 30 + Math.random() * 20;    
+                  tw = 80 + Math.random() * 100;  
+                  th = 20 + Math.random() * 20;    
               }
           } else {
               tw = 80 + Math.random() * 100;
@@ -97,17 +97,28 @@ export const generateTerrain = (): Terrain[] => {
   return newTerrain;
 };
 
-export const getTerrainAt = (terrain: Terrain[], x: number, y: number, w: number, h: number): TerrainType | null => {
+/**
+ * Returns the terrain object at the given point or bounding area that has the highest zIndex.
+ * If multiple terrains overlap, the one with the highest zIndex "wins" functionally.
+ */
+export const getTerrainAt = (terrain: Terrain[], x: number, y: number, w: number, h: number): Terrain | null => {
+    let winner: Terrain | null = null;
+    let maxZ = -Infinity;
+
     for (const t of terrain) {
-        if (t.type === 'WALL' || t.type === 'EARTH_WALL') {
-             if (checkRectOverlap(x - 10, y - 10, 20, 20, t.x, t.y, t.width, t.height)) {
-                 return t.type;
-             }
-        } else {
-             if (x > t.x && x < t.x + t.width && y > t.y && y < t.y + t.height) {
-                 return t.type;
-             }
+        const conf = TERRAIN_CONFIG[t.type];
+        
+        // Use rect overlap if checking an area, otherwise point check
+        const isHit = (w > 1 || h > 1)
+            ? checkRectOverlap(x - w / 2, y - h / 2, w, h, t.x, t.y, t.width, t.height)
+            : (x >= t.x && x <= t.x + t.width && y >= t.y && y <= t.y + t.height);
+
+        if (isHit) {
+            if (conf.zIndex > maxZ) {
+                maxZ = conf.zIndex;
+                winner = t;
+            }
         }
     }
-    return null;
+    return winner;
 };

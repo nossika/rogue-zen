@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Player, Enemy, Projectile, GameAssets, Stats, Item, UltimateType, FloatingText, Terrain, Hazard, HazardType, GoldDrop, UpgradeReward, Particle, ElementType, Talent } from '../types';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, INITIAL_PLAYER_WEAPON } from '../constants';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, INITIAL_PLAYER_STATS, COLOR_PALETTE, INITIAL_PLAYER_WEAPON, STAGE_TIME_LIMIT } from '../constants';
 import { SpatialHashGrid } from '@/systems/core/spatial-hash-grid';
 import { gameEvents, EVENTS } from '@/systems/core/events';
 import { GameContext, updateGameTick } from '@/systems/core/engine';
@@ -72,7 +72,8 @@ const Game: React.FC<GameProps> = ({
     weapon1: null as Item | null, weapon2: null as Item | null,
     armor1: null as Item | null, armor2: null as Item | null,
     hasUltimate: false, activeUltimates: [] as UltimateType[],
-    stats: { ...INITIAL_PLAYER_STATS }, talent: null as Talent | null
+    stats: { ...INITIAL_PLAYER_STATS }, talent: null as Talent | null,
+    stageTimer: STAGE_TIME_LIMIT
   });
   
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
@@ -165,7 +166,7 @@ const Game: React.FC<GameProps> = ({
         player, enemies: [], projectiles: [], floatingTexts: [], terrain: [], hazards: [], goldDrops: [], particles: [],
         spatialGrid: new SpatialHashGrid(150),
         stageInfo: { totalEnemies: 0, spawnedCount: 0, killedCount: 0, stageCleared: false, isBossStage: false },
-        timers: { timeStop: 0, invincibility: 0, hurt: 0, slowed: 0, speedBoost: 0, omniForce: 0, spawn: 0, stageClear: 0 },
+        timers: { timeStop: 0, invincibility: 0, hurt: 0, slowed: 0, speedBoost: 0, omniForce: 0, spawn: 0, stageClear: 0, stageTimer: STAGE_TIME_LIMIT },
         cooldowns: { weapon1: 0, weapon2: 0 },
         currentStage, initialGold, fireDamageAccumulator: { current: 0 }
     };
@@ -180,7 +181,8 @@ const Game: React.FC<GameProps> = ({
             slowed: { get current() { return ctx.timers.slowed }, set current(v) { ctx.timers.slowed = v } },
             timeStop: { get current() { return ctx.timers.timeStop }, set current(v) { ctx.timers.timeStop = v } },
             speedBoost: { get current() { return ctx.timers.speedBoost }, set current(v) { ctx.timers.speedBoost = v } },
-            omniForce: { get current() { return ctx.timers.omniForce }, set current(v) { ctx.timers.omniForce = v } }
+            omniForce: { get current() { return ctx.timers.omniForce }, set current(v) { ctx.timers.omniForce = v } },
+            stageTimer: { get current() { return ctx.timers.stageTimer }, set current(v) { ctx.timers.stageTimer = v } }
         },
         currentStage, initialGold
     });
@@ -233,7 +235,7 @@ const Game: React.FC<GameProps> = ({
           ctx.player.dead = true;
           onGameOver(currentStage);
       }
-      if (StageSystem.checkStageClearCondition(ctx.stageInfo) && ctx.timers.stageClear === 0) ctx.timers.stageClear = 1;
+      if (StageSystem.checkStageClearCondition(ctx.stageInfo, ctx.timers.stageTimer) && ctx.timers.stageClear === 0) ctx.timers.stageClear = 1;
       if (ctx.timers.stageClear > 0) {
           ctx.timers.stageClear++;
           if (ctx.timers.stageClear > 60) {
@@ -263,7 +265,8 @@ const Game: React.FC<GameProps> = ({
              weapon1: p.equipment.weapon1, weapon2: p.equipment.weapon2, armor1: p.equipment.armor1, armor2: p.equipment.armor2,
              hasUltimate: !!(p.equipment.weapon1?.ultimate || p.equipment.weapon2?.ultimate),
              activeUltimates: [p.equipment.weapon1?.ultimate, p.equipment.weapon2?.ultimate].filter(Boolean) as UltimateType[],
-             stats: p.stats, talent: p.talent
+             stats: p.stats, talent: p.talent,
+             stageTimer: ctx.timers.stageTimer
           });
       }
       animationFrameId = requestAnimationFrame(loop);

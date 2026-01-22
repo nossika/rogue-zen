@@ -129,8 +129,10 @@ export const updateHazards = (
                                 const angle = Math.atan2(e.y - h.y, e.x - h.x);
                                 const kbX = Math.cos(angle) * kbStrength;
                                 const kbY = Math.sin(angle) * kbStrength;
-                                if (!TerrainSystem.getTerrainAt(terrain, e.x + kbX, e.y, 20, 20)?.includes('WALL')) e.x += kbX;
-                                if (!TerrainSystem.getTerrainAt(terrain, e.x, e.y + kbY, 20, 20)?.includes('WALL')) e.y += kbY;
+                                const hitTCheck = TerrainSystem.getTerrainAt(terrain, e.x + kbX, e.y, 20, 20);
+                                if (hitTCheck?.type !== 'WALL' && hitTCheck?.type !== 'EARTH_WALL') e.x += kbX;
+                                const hitTCheckY = TerrainSystem.getTerrainAt(terrain, e.x, e.y + kbY, 20, 20);
+                                if (hitTCheckY?.type !== 'WALL' && hitTCheckY?.type !== 'EARTH_WALL') e.y += kbY;
                             }
                         }
                     });
@@ -150,14 +152,17 @@ export const updateHazards = (
             const distSq = dx*dx + dy*dy;
             const playerHit = distSq < hitThreshold * hitThreshold;
             let damageTick = h.damage * dt;
-            const centerTerrain = TerrainSystem.getTerrainAt(terrain, h.x, h.y, 1, 1);
+            const winnerH = TerrainSystem.getTerrainAt(terrain, h.x, h.y, 1, 1);
+            const centerTerrain = winnerH?.type || null;
+
             if ((h.type === 'FIRE' && centerTerrain === 'WATER') || 
                 (h.type === 'POISON' && centerTerrain === 'MUD')) {
                 hazards.splice(i, 1);
                 continue;
             }
             if (playerHit) {
-                const playerTerrain = TerrainSystem.getTerrainAt(terrain, player.x, player.y, 1, 1);
+                const winnerP = TerrainSystem.getTerrainAt(terrain, player.x, player.y, 1, 1);
+                const playerTerrain = winnerP?.type || null;
                 const isSafe = (h.type === 'FIRE' && playerTerrain === 'WATER') || 
                                (h.type === 'POISON' && playerTerrain === 'MUD');
                 if (!isSafe) {
@@ -183,7 +188,8 @@ export const updateHazards = (
                  const eHitThreshold = h.radius + e.width / 2;
                  if (eDistSq < eHitThreshold * eHitThreshold) {
                      if (h.type === 'POISON' && e.type === 'ZOMBIE') return;
-                     const enemyTerrain = TerrainSystem.getTerrainAt(terrain, e.x, e.y, 1, 1);
+                     const winnerE = TerrainSystem.getTerrainAt(terrain, e.x, e.y, 1, 1);
+                     const enemyTerrain = winnerE?.type || null;
                      const isSafe = (h.type === 'FIRE' && enemyTerrain === 'WATER') || 
                                     (h.type === 'POISON' && enemyTerrain === 'MUD');
                      if (!isSafe) {
